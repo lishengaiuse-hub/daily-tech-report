@@ -19,9 +19,9 @@ import re
 import time
 import traceback
 import smtplib
+import html
 from collections import Counter
 from typing import List, Dict, Any
-import html
 
 # ==================== CONFIGURATION ====================
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -63,27 +63,6 @@ RSS_FEEDS = [
     {"url": "https://www.displaydaily.com/feed", "category": "display", "region": "global", "lang": "en"},
 ]
 
-# ==================== EXECUTIVE SUMMARY TEMPLATE ====================
-EXECUTIVE_TEMPLATE = """
-Dear Director,
-
-Here is today's Southeast Asia technology and manufacturing intelligence briefing.
-
-🔍 **KEY HIGHLIGHTS:**
-{highlights}
-
-🏭 **MANUFACTURING & INVESTMENT**
-{factory_summary}
-
-💡 **TECHNOLOGY & INNOVATION**
-{tech_summary}
-
-📅 **UPCOMING EVENTS**
-{events_summary}
-
-*Report generated at {timestamp}*
-"""
-
 # ==================== MAIN SCRIPT ====================
 class TechIntelligenceDashboard:
     def __init__(self):
@@ -114,7 +93,9 @@ class TechIntelligenceDashboard:
                     link = entry.get('link', '')
                     
                     # Extract full content if available
-                    content = entry.get('content', [{'value': ''}])[0].get('value', '')[:1000]
+                    content = ''
+                    if 'content' in entry and entry['content']:
+                        content = entry['content'][0].get('value', '')[:1000]
                     
                     # Get publication date
                     published = entry.get('published', '')
@@ -235,20 +216,27 @@ Provide ONLY the translation, no explanations."""
         date = datetime.now().strftime('%B %d, %Y')
         
         # Separate news by category
-        factory_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
-                      for k in ['factory', 'plant', 'manufacturing', 'production', 'facility'])]
+        factory_news = []
+        tech_news = []
+        exhibition_news = []
         
-        tech_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
-                    for k in ['technology', 'innovation', 'AR', 'VR', 'AI', 'chip', 'semiconductor']]
-        
-        exhibition_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
-                          for k in ['exhibition', 'expo', 'conference', 'trade show', 'AWE', 'CES']]
+        for n in news_items:
+            text = (n['title'] + ' ' + n.get('summary', '')).lower()
+            if any(k in text for k in ['factory', 'plant', 'manufacturing', 'production', 'facility']):
+                factory_news.append(n)
+            elif any(k in text for k in ['technology', 'innovation', 'ar', 'vr', 'ai', 'chip', 'semiconductor']):
+                tech_news.append(n)
+            elif any(k in text for k in ['exhibition', 'expo', 'conference', 'trade show', 'awe', 'ces']):
+                exhibition_news.append(n)
         
         # Create detailed sections
         factory_section = self._create_factory_section(factory_news[:8])
         tech_section = self._create_tech_section(tech_news[:10])
         exhibition_section = self._create_exhibition_section(exhibition_news[:6])
         trends_section = self._create_trends_section(trends)
+        
+        # Generate executive summary
+        exec_summary = self._generate_executive_summary(news_items, trends)
         
         # Build complete HTML
         html = f"""<!DOCTYPE html>
@@ -312,6 +300,7 @@ Provide ONLY the translation, no explanations."""
             font-size: 0.95em;
             border-top: 1px solid #334155;
             padding-top: 20px;
+            flex-wrap: wrap;
         }}
         
         /* Executive Summary Card */
@@ -675,7 +664,7 @@ Provide ONLY the translation, no explanations."""
         <!-- Executive Summary -->
         <div class="summary-card">
             <h2>📋 Executive Summary</h2>
-            <p>{self._generate_executive_summary(news_items, trends)}</p>
+            <p>{exec_summary}</p>
         </div>
         
         <!-- KPI Dashboard -->
@@ -747,7 +736,7 @@ Provide ONLY the translation, no explanations."""
     def _create_factory_section(self, factory_news):
         """Create detailed manufacturing section"""
         if not factory_news:
-            return '<p style="color:#666; text-align:center;">No manufacturing news today.</p>'
+            return '<p style="color:#666; text-align:center; padding:30px;">No manufacturing news today.</p>'
         
         html = '<div class="manufacturing-grid">'
         for item in factory_news:
@@ -762,10 +751,10 @@ Provide ONLY the translation, no explanations."""
             html += f"""
             <div class="manufacturing-card">
                 <div class="company-header">
-                    <div class="company-logo">{company[0]}</div>
+                    <div class="company-logo">{company[0] if company else '?'}</div>
                     <div class="company-info">
                         <h3>{html.escape(item['title'][:80])}</h3>
-                        <div class="company-meta">{item['source']} • {item.get('region', 'Global')}</div>
+                        <div class="company-meta">{item['source']} • {item.get('region', 'Global').title()}</div>
                     </div>
                 </div>
                 <div class="detail-row">
@@ -790,7 +779,7 @@ Provide ONLY the translation, no explanations."""
     def _create_tech_section(self, tech_news):
         """Create detailed technology section with supplier information"""
         if not tech_news:
-            return '<p style="color:#666; text-align:center;">No technology news today.</p>'
+            return '<p style="color:#666; text-align:center; padding:30px;">No technology news today.</p>'
         
         html = """<table class="tech-table">
             <thead>
@@ -814,18 +803,25 @@ Provide ONLY the translation, no explanations."""
             
             # Determine application area
             application = "Consumer Electronics"
-            if 'AR' in item['title'] or 'VR' in item['title']:
+            title_lower = item['title'].lower()
+            summary_lower = item.get('summary', '').lower()
+            
+            if 'ar' in title_lower or 'vr' in title_lower:
                 application = "AR/VR Devices"
-            elif 'chip' in item['title'].lower() or 'semiconductor' in item['title'].lower():
+            elif 'chip' in title_lower or 'semiconductor' in title_lower:
                 application = "Semiconductors"
-            elif 'display' in item['title'].lower() or 'screen' in item['title'].lower():
+            elif 'display' in title_lower or 'screen' in title_lower:
                 application = "Display Technology"
+            elif 'battery' in title_lower:
+                application = "Battery Technology"
+            elif 'ai' in title_lower:
+                application = "Artificial Intelligence"
             
             html += f"""
             <tr>
                 <td>
                     <div class="tech-name">{html.escape(item['title'][:60])}</div>
-                    <div style="color: #64748b; font-size: 0.9em;">{item['region']}</div>
+                    <div style="color: #64748b; font-size: 0.9em;">{item['region'].title()}</div>
                 </td>
                 <td>{application}</td>
                 <td><div class="supplier-tags">{supplier_tags}</div></td>
@@ -838,7 +834,7 @@ Provide ONLY the translation, no explanations."""
     def _create_exhibition_section(self, exhibition_news):
         """Create detailed exhibition section"""
         if not exhibition_news:
-            return '<p style="color:#666; text-align:center;">No exhibition news today.</p>'
+            return '<p style="color:#666; text-align:center; padding:30px;">No exhibition news today.</p>'
         
         html = '<div class="exhibition-grid">'
         for item in exhibition_news:
@@ -902,7 +898,7 @@ Focus on: investments, new factories, major technology announcements, and strate
 
 Key stats:
 - Total articles: {len(news_items)}
-- Top locations: {trends['top_locations'][:3]}
+- Top locations: {', '.join([loc[0] for loc in trends['top_locations'][:3]]) if trends['top_locations'] else 'Various'}
 - Investment mentions: {trends['total_investments']}
 
 Make it professional and impactful for a company director."""
@@ -919,7 +915,8 @@ Make it professional and impactful for a company director."""
             
         except Exception as e:
             self.log(f"⚠️ Summary generation failed: {e}", "WARNING")
-            return f"Today's intelligence covers {len(news_items)} articles with significant activity in {trends['top_locations'][0][0] if trends['top_locations'] else 'the region'}. Key developments include manufacturing expansions and technology innovations."
+            location_text = trends['top_locations'][0][0] if trends['top_locations'] else 'the region'
+            return f"Today's intelligence covers {len(news_items)} articles with significant activity in {location_text}. Key developments include manufacturing expansions and technology innovations across Southeast Asia."
     
     def parse_recipients(self, recipients_string):
         """Parse email recipients"""
@@ -960,6 +957,7 @@ Make it professional and impactful for a company director."""
             
         except Exception as e:
             self.log(f"❌ Email failed: {e}", "ERROR")
+            traceback.print_exc()
             return False
     
     def run(self):
@@ -978,12 +976,13 @@ Make it professional and impactful for a company director."""
         
         # Step 2: Translate Chinese news
         translated = self.translate_chinese_news()
+        all_news = news_items + translated
         
         # Step 3: Analyze trends
-        trends = self.analyze_trends(news_items + translated)
+        trends = self.analyze_trends(all_news)
         
         # Step 4: Generate dashboard
-        html_content = self.generate_executive_dashboard(news_items + translated, trends)
+        html_content = self.generate_executive_dashboard(all_news, trends)
         
         # Step 5: Send email
         subject = f"📊 SEA Tech Intelligence Dashboard - {datetime.now().strftime('%Y-%m-%d')}"
