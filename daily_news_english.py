@@ -13,15 +13,16 @@ import feedparser
 import requests
 from datetime import datetime, timedelta
 import openai
-import yagmail
 import tempfile
 import re
 import time
 import traceback
 import smtplib
-import html as html_module  # Import html module
+import html as html_module
 from collections import Counter
 from typing import List, Dict, Any
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # ==================== CONFIGURATION ====================
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
@@ -808,7 +809,6 @@ Provide ONLY the translation, no explanations."""
             # Determine application area
             application = "Consumer Electronics"
             title_lower = item['title'].lower()
-            summary_lower = item.get('summary', '').lower()
             
             if 'ar' in title_lower or 'vr' in title_lower:
                 application = "AR/VR Devices"
@@ -938,75 +938,77 @@ Make it professional and impactful for a company director."""
         return recipients
     
     def send_email(self, subject, html_content):
-    """Send email with professional dashboard using direct SMTP"""
-    self.log("\n📧 Sending executive briefing...")
-    
-    try:
-        recipients = self.parse_recipients(EMAIL_CONFIG["receiver_email"])
-        if not recipients:
-            self.log("❌ No valid recipients", "ERROR")
-            return False
+        """Send email with professional dashboard using direct SMTP"""
+        self.log("\n📧 Sending executive briefing...")
         
-        self.log(f"   To: {recipients}")
-        
-        # Use direct SMTP instead of yagmail to avoid SSL issues
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = subject
-        msg['From'] = EMAIL_CONFIG["sender_email"]
-        msg['To'] = ', '.join(recipients)
-        
-        # Attach HTML content
-        html_part = MIMEText(html_content, 'html')
-        msg.attach(html_part)
-        
-        # Connect to Gmail SMTP with proper SSL
-        self.log(f"   Connecting to {EMAIL_CONFIG['smtp_host']}:{EMAIL_CONFIG['smtp_port']}...")
-        
-        # Try different connection methods
         try:
-            # Method 1: Standard TLS
-            server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=30)
-            server.starttls()
-            server.ehlo()
-            self.log("   ✅ Connected with STARTTLS")
+            recipients = self.parse_recipients(EMAIL_CONFIG["receiver_email"])
+            if not recipients:
+                self.log("❌ No valid recipients", "ERROR")
+                return False
+            
+            self.log(f"   To: {recipients}")
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = EMAIL_CONFIG["sender_email"]
+            msg['To'] = ', '.join(recipients)
+            
+            # Attach HTML content
+            html_part = MIMEText(html_content, 'html', 'utf-8')
+            msg.attach(html_part)
+            
+            # Try multiple connection methods
+            methods = [
+                {"port": 465, "ssl": True, "name": "SSL on 465"},
+                {"port": 587, "ssl": False, "name": "TLS on 587"},
+                {"port": 25, "ssl": False, "name": "Plain on 25"}
+            ]
+            
+            sent = False
+            for method in methods:
+                try:
+                    self.log(f"   Trying method: {method['name']}...")
+                    
+                    if method['ssl']:
+                        server = smtplib.SMTP_SSL("smtp.gmail.com", method['port'], timeout=30)
+                    else:
+                        server = smtplib.SMTP("smtp.gmail.com", method['port'], timeout=30)
+                        server.starttls()
+                    
+                    server.ehlo()
+                    self.log(f"   ✅ Connected with {method['name']}")
+                    
+                    # Login
+                    self.log("   Logging in...")
+                    server.login(EMAIL_CONFIG["sender_email"], EMAIL_CONFIG["sender_password"])
+                    self.log("   ✅ Login successful")
+                    
+                    # Send email
+                    self.log("   Sending email...")
+                    server.send_message(msg)
+                    self.log("   ✅ Message sent")
+                    
+                    server.quit()
+                    sent = True
+                    break
+                    
+                except Exception as e:
+                    self.log(f"   ⚠️ Method {method['name']} failed: {e}", "WARNING")
+                    continue
+            
+            if sent:
+                self.log("✅ Executive briefing sent successfully!")
+                return True
+            else:
+                self.log("❌ All sending methods failed", "ERROR")
+                return False
+            
         except Exception as e:
-            self.log(f"   ⚠️ Method 1 failed: {e}", "WARNING")
-            try:
-                # Method 2: Direct SSL
-                server = smtplib.SMTP_SSL(EMAIL_CONFIG["smtp_host"], 465, timeout=30)
-                self.log("   ✅ Connected with SSL on port 465")
-            except Exception as e:
-                self.log(f"   ⚠️ Method 2 failed: {e}", "WARNING")
-                # Method 3: No encryption (not recommended but as fallback)
-                server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], 25, timeout=30)
-                self.log("   ⚠️ Connected without encryption", "WARNING")
-        
-        # Login
-        self.log("   Logging in...")
-        server.login(EMAIL_CONFIG["sender_email"], EMAIL_CONFIG["sender_password"])
-        self.log("   ✅ Login successful")
-        
-        # Send email
-        self.log("   Sending email...")
-        server.send_message(msg)
-        self.log("   ✅ Message sent")
-        
-        # Close connection
-        server.quit()
-        
-        self.log("✅ Executive briefing sent successfully!")
-        return True
-        
-    except Exception as e:
-        self.log(f"❌ Email failed: {e}", "ERROR")
-        traceback.print_exc()
-        return False
-        
+            self.log(f"❌ Email failed: {e}", "ERROR")
+            traceback.print_exc()
+            return False
     
     def run(self):
         """Main execution flow"""
