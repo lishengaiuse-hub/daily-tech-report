@@ -19,7 +19,7 @@ import re
 import time
 import traceback
 import smtplib
-import html
+import html as html_module  # Import html module
 from collections import Counter
 from typing import List, Dict, Any
 
@@ -673,7 +673,7 @@ Provide ONLY the translation, no explanations."""
                 <div class="kpi-icon">🏭</div>
                 <div class="kpi-label">Manufacturing Projects</div>
                 <div class="kpi-value">{len(factory_news)}</div>
-                <div class="kpi-trend">↑ {len([n for n in factory_news if 'investment' in n.get('summary','').lower()])} with investments</div>
+                <div class="kpi-trend">↑ {len([n for n in factory_news if 'investment' in str(n.get('summary','')).lower()])} with investments</div>
             </div>
             <div class="kpi-card">
                 <div class="kpi-icon">💡</div>
@@ -748,12 +748,16 @@ Provide ONLY the translation, no explanations."""
             if 'invest' in item.get('summary', '').lower() or '$' in item.get('summary', ''):
                 investment = "See details"
             
+            # Safely escape HTML content
+            title_safe = html_module.escape(item['title'][:80])
+            summary_safe = html_module.escape(item.get('summary', '')[:200])
+            
             html += f"""
             <div class="manufacturing-card">
                 <div class="company-header">
                     <div class="company-logo">{company[0] if company else '?'}</div>
                     <div class="company-info">
-                        <h3>{html.escape(item['title'][:80])}</h3>
+                        <h3>{title_safe}</h3>
                         <div class="company-meta">{item['source']} • {item.get('region', 'Global').title()}</div>
                     </div>
                 </div>
@@ -763,7 +767,7 @@ Provide ONLY the translation, no explanations."""
                 </div>
                 <div class="detail-row">
                     <div class="detail-label">Summary</div>
-                    <div class="detail-value">{html.escape(item.get('summary', '')[:200])}...</div>
+                    <div class="detail-value">{summary_safe}...</div>
                 </div>
                 <div style="margin-top: 15px;">
                     <a href="{item['link']}" style="color: #0066cc; text-decoration: none;">🔗 Read More →</a>
@@ -799,7 +803,7 @@ Provide ONLY the translation, no explanations."""
             found_suppliers = re.findall(supplier_pattern, item.get('summary', '') + item['title'])
             suppliers = found_suppliers[:3] if found_suppliers else ["Information pending"]
             
-            supplier_tags = ''.join([f'<span class="supplier-tag">{s}</span>' for s in suppliers])
+            supplier_tags = ''.join([f'<span class="supplier-tag">{html_module.escape(s)}</span>' for s in suppliers])
             
             # Determine application area
             application = "Consumer Electronics"
@@ -817,10 +821,12 @@ Provide ONLY the translation, no explanations."""
             elif 'ai' in title_lower:
                 application = "Artificial Intelligence"
             
+            title_safe = html_module.escape(item['title'][:60])
+            
             html += f"""
             <tr>
                 <td>
-                    <div class="tech-name">{html.escape(item['title'][:60])}</div>
+                    <div class="tech-name">{title_safe}</div>
                     <div style="color: #64748b; font-size: 0.9em;">{item['region'].title()}</div>
                 </td>
                 <td>{application}</td>
@@ -842,9 +848,11 @@ Provide ONLY the translation, no explanations."""
             date_match = re.search(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}', item.get('summary', ''))
             date = date_match.group() if date_match else "TBA"
             
+            title_safe = html_module.escape(item['title'][:60])
+            
             html += f"""
             <div class="exhibition-card">
-                <div class="exhibition-name">{html.escape(item['title'][:60])}</div>
+                <div class="exhibition-name">{title_safe}</div>
                 <div class="exhibition-dates">📅 {date}</div>
                 <div class="exhibition-venue">📍 {item.get('region', 'TBA').title()}</div>
                 <div class="exhibitor-list">
@@ -893,12 +901,14 @@ Provide ONLY the translation, no explanations."""
     def _generate_executive_summary(self, news_items, trends):
         """Generate executive summary using AI"""
         try:
+            location_text = ', '.join([loc[0] for loc in trends['top_locations'][:3]]) if trends['top_locations'] else 'Various'
+            
             prompt = f"""Write a brief executive summary (3-4 sentences) of today's Southeast Asia tech and manufacturing news.
 Focus on: investments, new factories, major technology announcements, and strategic trends.
 
 Key stats:
 - Total articles: {len(news_items)}
-- Top locations: {', '.join([loc[0] for loc in trends['top_locations'][:3]]) if trends['top_locations'] else 'Various'}
+- Top locations: {location_text}
 - Investment mentions: {trends['total_investments']}
 
 Make it professional and impactful for a company director."""
