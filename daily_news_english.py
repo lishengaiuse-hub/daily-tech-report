@@ -2,16 +2,11 @@
 # -*- coding: utf-8 -*-
 """
 Daily Tech Intelligence Report - Complete Fixed Version
-With proper email recipient parsing and error handling
-"""
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Daily Tech Intelligence Report - Complete Fixed Version
+With proper error handling and JSON parsing
 """
 
 import os
-import sys  # ← ADD THIS LINE
+import sys
 import json
 import hashlib
 import feedparser
@@ -263,7 +258,6 @@ If no news for a category, return empty array."""
             log("Attempting to extract JSON from response...")
             
             # Try to find JSON in the response (in case there's extra text)
- import re
             json_match = re.search(r'\{.*\}', content, re.DOTALL)
             if json_match:
                 try:
