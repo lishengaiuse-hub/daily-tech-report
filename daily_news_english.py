@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Daily Tech Intelligence Report - Debug Version
+Daily Tech Intelligence Report - Ultra Debug Version
+Logs every step to find email issues
 """
 
 import os
+import sys
 import json
 import hashlib
 import feedparser
@@ -16,13 +18,27 @@ import tempfile
 import re
 import time
 import traceback
+import smtplib
+import socket
+
+# ==================== LOGGING SETUP ====================
+def log(msg, level="INFO"):
+    """Simple logging with timestamp"""
+    timestamp = datetime.now().strftime('%H:%M:%S')
+    print(f"[{timestamp}] {level}: {msg}")
+    sys.stdout.flush()  # Force print to appear immediately
+
+log("=" * 60)
+log("SCRIPT STARTED")
+log(f"Python version: {sys.version}")
+log(f"Working directory: {os.getcwd()}")
+log("=" * 60)
 
 # ==================== CONFIGURATION ====================
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+log("Loading environment variables...")
 
-# Configure OpenAI for DeepSeek
-openai.api_key = DEEPSEEK_API_KEY
-openai.api_base = "https://api.deepseek.com/v1"
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+log(f"DEEPSEEK_API_KEY set: {'Yes' if DEEPSEEK_API_KEY else 'No'}")
 
 # Email Configuration
 EMAIL_CONFIG = {
@@ -33,12 +49,19 @@ EMAIL_CONFIG = {
     "receiver_email": os.getenv("RECEIVER_EMAIL")
 }
 
-# Print config for debugging (hiding sensitive info)
-print(f"\n📧 Email Configuration:")
-print(f"   Sender: {EMAIL_CONFIG['sender_email']}")
-print(f"   SMTP: {EMAIL_CONFIG['smtp_host']}:{EMAIL_CONFIG['smtp_port']}")
-print(f"   Password set: {'Yes' if EMAIL_CONFIG['sender_password'] else 'No'}")
-print(f"   Recipients raw: {EMAIL_CONFIG['receiver_email']}")
+log(f"SMTP_HOST: {EMAIL_CONFIG['smtp_host']}")
+log(f"SMTP_PORT: {EMAIL_CONFIG['smtp_port']}")
+log(f"SENDER_EMAIL: {EMAIL_CONFIG['sender_email']}")
+log(f"SENDER_PASSWORD set: {'Yes' if EMAIL_CONFIG['sender_password'] else 'No'}")
+log(f"RECEIVER_EMAIL raw: {EMAIL_CONFIG['receiver_email']}")
+
+# Configure OpenAI for DeepSeek
+if DEEPSEEK_API_KEY:
+    openai.api_key = DEEPSEEK_API_KEY
+    openai.api_base = "https://api.deepseek.com/v1"
+    log("OpenAI configured for DeepSeek")
+else:
+    log("❌ No DeepSeek API key found!", "ERROR")
 
 # RSS FEEDS
 RSS_FEEDS = [
@@ -48,6 +71,7 @@ RSS_FEEDS = [
     {"url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "business"},
     {"url": "https://www.thestar.com.my/rss/business", "category": "business"},
 ]
+log(f"RSS feeds configured: {len(RSS_FEEDS)}")
 
 # Keywords
 KEYWORDS = [
@@ -55,21 +79,57 @@ KEYWORDS = [
     "Malaysia", "Singapore", "AR", "VR", "AI", "smart glasses", "wearable",
     "supplier", "exhibition", "expo", "AWE", "CES"
 ]
+log(f"Keywords: {len(KEYWORDS)}")
+
+# ==================== TEST FUNCTIONS ====================
+
+def test_smtp_connection():
+    """Test SMTP connection without sending email"""
+    log("Testing SMTP connection...")
+    try:
+        server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=10)
+        server.starttls()
+        server.ehlo()
+        log(f"✅ SMTP connection successful to {EMAIL_CONFIG['smtp_host']}")
+        server.quit()
+        return True
+    except Exception as e:
+        log(f"❌ SMTP connection failed: {e}", "ERROR")
+        traceback.print_exc()
+        return False
+
+def test_smtp_login():
+    """Test SMTP login"""
+    log("Testing SMTP login...")
+    try:
+        server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=10)
+        server.starttls()
+        server.ehlo()
+        server.login(EMAIL_CONFIG["sender_email"], EMAIL_CONFIG["sender_password"])
+        log(f"✅ SMTP login successful for {EMAIL_CONFIG['sender_email']}")
+        server.quit()
+        return True
+    except Exception as e:
+        log(f"❌ SMTP login failed: {e}", "ERROR")
+        traceback.print_exc()
+        return False
 
 # ==================== FUNCTIONS ====================
 
 def fetch_news_fast():
     """Fetch news quickly"""
+    log("Starting news fetch...")
     news_items = []
     feedparser.USER_AGENT = "Mozilla/5.0 (compatible; RSS Reader)"
     
     for feed in RSS_FEEDS:
         try:
-            print(f"Fetching: {feed['url']}")
+            log(f"Fetching: {feed['url']}")
             parsed = feedparser.parse(feed['url'])
+            log(f"  Got {len(parsed.entries)} entries")
             
-            for entry in parsed.entries[:10]:
-                title = entry.get('title', '')
+            for i, entry in enumerate(parsed.entries[:10]):
+                title = entry.get('title', 'No title')
                 summary = entry.get('summary', '') or entry.get('description', '')
                 link = entry.get('link', '')
                 
@@ -77,6 +137,8 @@ def fetch_news_fast():
                 text = (title + " " + summary).lower()
                 if not any(kw.lower() in text for kw in KEYWORDS):
                     continue
+                
+                log(f"  ✅ Match found: {title[:50]}...")
                 
                 published = entry.get('published', datetime.now().strftime('%Y-%m-%d'))
                 source = feed['url'].split('/')[2] if '//' in feed['url'] else feed['url']
@@ -90,19 +152,23 @@ def fetch_news_fast():
                 })
                 
         except Exception as e:
-            print(f"  ⚠️ Error: {e}")
+            log(f"  ❌ Error fetching {feed['url']}: {e}", "ERROR")
             continue
     
-    print(f"✅ Total: {len(news_items)} articles")
+    log(f"✅ Total articles found: {len(news_items)}")
     return news_items
 
 def generate_report(news_items):
     """Generate report with DeepSeek"""
+    log("Starting report generation...")
+    
     if not news_items:
+        log("❌ No news items to generate report", "ERROR")
         return None
     
     # Prepare input
     news_text = "\n".join([f"- {item['title']} ({item['source']})" for item in news_items[:20]])
+    log(f"Prepared {len(news_items[:20])} items for API")
     
     prompt = """You are an industry analyst. Create a brief JSON report with:
 {
@@ -113,6 +179,9 @@ def generate_report(news_items):
 }"""
     
     try:
+        log("Calling DeepSeek API...")
+        start_time = time.time()
+        
         response = openai.ChatCompletion.create(
             model="deepseek-chat",
             messages=[
@@ -124,13 +193,21 @@ def generate_report(news_items):
             timeout=30
         )
         
-        return json.loads(response.choices[0].message.content)
+        api_time = time.time() - start_time
+        log(f"✅ API response in {api_time:.1f} seconds")
+        
+        result = json.loads(response.choices[0].message.content)
+        log(f"Report generated with: factory={len(result.get('factory_news', []))}, tech={len(result.get('tech_table', []))}, expos={len(result.get('expos', []))}")
+        
+        return result
     except Exception as e:
-        print(f"❌ API error: {e}")
+        log(f"❌ API error: {e}", "ERROR")
+        traceback.print_exc()
         return None
 
 def create_html_report(report_data, news_items):
     """Create HTML report"""
+    log("Creating HTML report...")
     date = datetime.now().strftime('%B %d, %Y')
     
     # Factory news HTML
@@ -161,7 +238,7 @@ def create_html_report(report_data, news_items):
         </div>
         """
     
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html>
 <head>
     <title>Tech Report {date}</title>
@@ -203,96 +280,169 @@ def create_html_report(report_data, news_items):
     <div class="footer">Generated: {datetime.now()} | Articles: {len(news_items)}</div>
 </body>
 </html>"""
+    
+    # Save HTML to file
+    try:
+        with open("report.html", "w", encoding='utf-8') as f:
+            f.write(html)
+        log("✅ Saved report.html")
+    except Exception as e:
+        log(f"❌ Failed to save HTML: {e}", "ERROR")
+    
+    return html
 
 def send_email(subject, html_content):
-    """Send email with detailed debugging"""
-    print(f"\n📧 Sending email...")
+    """Send email with ultra debugging"""
+    log("\n" + "="*40)
+    log("EMAIL SENDING ATTEMPT")
+    log("="*40)
     
     try:
         # Check config
+        log("Checking email configuration...")
         if not EMAIL_CONFIG["sender_email"]:
-            print("❌ SENDER_EMAIL missing")
+            log("❌ SENDER_EMAIL is missing", "ERROR")
             return False
         if not EMAIL_CONFIG["sender_password"]:
-            print("❌ SENDER_PASSWORD missing")
+            log("❌ SENDER_PASSWORD is missing", "ERROR")
             return False
         if not EMAIL_CONFIG["receiver_email"]:
-            print("❌ RECEIVER_EMAIL missing")
+            log("❌ RECEIVER_EMAIL is missing", "ERROR")
             return False
+        
+        log(f"Sender: {EMAIL_CONFIG['sender_email']}")
+        log(f"Password length: {len(EMAIL_CONFIG['sender_password'])} characters")
         
         # Parse recipients
         recipients_str = EMAIL_CONFIG["receiver_email"]
-        for d in [';', '\n', '|', ',']:
-            recipients_str = recipients_str.replace(d, ',')
+        log(f"Raw recipients string: '{recipients_str}'")
         
-        recipients = [e.strip() for e in recipients_str.split(',') if e.strip() and '@' in e]
-        print(f"   Recipients: {recipients}")
+        # Replace delimiters
+        for d in [';', '\n', '|']:
+            recipients_str = recipients_str.replace(d, ',')
+        log(f"After delimiter replacement: '{recipients_str}'")
+        
+        # Split and clean
+        raw_emails = [e.strip() for e in recipients_str.split(',') if e.strip()]
+        log(f"Raw split emails: {raw_emails}")
+        
+        # Validate emails
+        recipients = [e for e in raw_emails if '@' in e and '.' in e.split('@')[-1]]
+        log(f"Valid recipients after validation: {recipients}")
         
         if not recipients:
-            print("❌ No valid recipients")
+            log("❌ No valid email recipients after validation", "ERROR")
             return False
         
-        # Connect and send
-        print(f"   Connecting to {EMAIL_CONFIG['smtp_host']}:{EMAIL_CONFIG['smtp_port']}...")
-        yag = yagmail.SMTP(
-            user=EMAIL_CONFIG["sender_email"],
-            password=EMAIL_CONFIG["sender_password"],
-            host=EMAIL_CONFIG["smtp_host"],
-            port=EMAIL_CONFIG["smtp_port"]
-        )
-        print("   Connected!")
+        # Try direct SMTP connection first
+        log("Testing direct SMTP connection...")
+        try:
+            server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=10)
+            server.starttls()
+            server.ehlo()
+            log("✅ Basic SMTP connection successful")
+            server.quit()
+        except Exception as e:
+            log(f"❌ Basic SMTP connection failed: {e}", "ERROR")
+            # Continue anyway, yagmail might work
         
-        print("   Sending...")
-        yag.send(
-            to=recipients,
-            subject=subject,
-            contents=html_content
-        )
+        # Try yagmail
+        log("Initializing yagmail...")
+        try:
+            yag = yagmail.SMTP(
+                user=EMAIL_CONFIG["sender_email"],
+                password=EMAIL_CONFIG["sender_password"],
+                host=EMAIL_CONFIG["smtp_host"],
+                port=EMAIL_CONFIG["smtp_port"],
+                smtp_starttls=True,
+                smtp_ssl=False
+            )
+            log("✅ yagmail SMTP object created")
+        except Exception as e:
+            log(f"❌ yagmail initialization failed: {e}", "ERROR")
+            traceback.print_exc()
+            return False
         
-        print(f"✅ Email sent!")
+        # Send email
+        log(f"Sending email to {len(recipients)} recipients...")
+        log(f"Subject: {subject}")
+        log(f"Content length: {len(html_content)} chars")
+        
+        try:
+            yag.send(
+                to=recipients,
+                subject=subject,
+                contents=html_content
+            )
+            log("✅ yagmail.send() completed successfully")
+        except Exception as e:
+            log(f"❌ yagmail.send() failed: {e}", "ERROR")
+            traceback.print_exc()
+            return False
+        
+        log("✅ Email sent successfully!")
         return True
         
     except Exception as e:
-        print(f"❌ Email failed: {e}")
+        log(f"❌ Unexpected error in send_email: {e}", "ERROR")
         traceback.print_exc()
         return False
 
 # ==================== MAIN ====================
 
 def main():
-    print(f"\n{'='*60}")
-    print(f"🚀 Tech Report - {datetime.now()}")
-    print(f"{'='*60}\n")
+    log("\n" + "="*60)
+    log("MAIN FUNCTION STARTED")
+    log("="*60)
     
     start = time.time()
     
+    # Test SMTP first
+    log("\n--- SMTP PRE-TESTS ---")
+    test_smtp_connection()
+    test_smtp_login()
+    
     # Fetch news
+    log("\n--- FETCHING NEWS ---")
     news = fetch_news_fast()
     if not news:
-        print("❌ No news found")
+        log("❌ No news found, exiting", "ERROR")
         return
     
     # Generate report
-    print(f"\n🤖 Generating report...")
+    log("\n--- GENERATING REPORT ---")
     report = generate_report(news)
     if not report:
-        print("❌ Report generation failed")
+        log("❌ Report generation failed, exiting", "ERROR")
         return
     
     # Create HTML
-    print(f"\n🎨 Creating HTML...")
+    log("\n--- CREATING HTML ---")
     html = create_html_report(report, news)
     
-    # Save HTML locally (for debugging)
-    with open("report.html", "w") as f:
-        f.write(html)
-    print("   Saved report.html")
-    
     # Send email
+    log("\n--- SENDING EMAIL ---")
     subject = f"SEA Tech Report {datetime.now().strftime('%Y-%m-%d')}"
-    send_email(subject, html)
+    email_result = send_email(subject, html)
     
-    print(f"\n✅ Complete in {time.time()-start:.1f} seconds")
+    if email_result:
+        log("✅ Email function returned True")
+    else:
+        log("❌ Email function returned False", "ERROR")
+    
+    # Final status
+    elapsed = time.time() - start
+    log("\n" + "="*60)
+    log(f"SCRIPT COMPLETED in {elapsed:.1f} seconds")
+    log(f"Final email status: {'SUCCESS' if email_result else 'FAILED'}")
+    log("="*60)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        log(f"❌ Unhandled exception in main: {e}", "ERROR")
+        traceback.print_exc()
+    
+    log("\nSCRIPT FINISHED")
+    sys.stdout.flush()
