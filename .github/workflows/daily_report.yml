@@ -2,35 +2,54 @@ name: Fast Tech Report
 
 on:
   schedule:
-    - cron: '55 0 * * *'  # 8:55 AM Singapore
+    - cron: '55 0 * * *'
   workflow_dispatch:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Force Node.js 24
 
 jobs:
   fast-report:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4  # Updated to v4
+        uses: actions/checkout@v4
         
       - name: Setup Python
-        uses: actions/setup-python@v5  # Updated to v5
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'  # Updated to Python 3.11
+          python-version: '3.11'
           
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip list  # Show installed packages
           
-      - name: Debug - Print environment
+      - name: Debug - Environment Info
         run: |
           echo "Current time: $(date)"
           echo "Python version: $(python --version)"
           echo "Working directory: $(pwd)"
           echo "Files in directory:"
           ls -la
+          echo "Environment variables (safe ones):"
+          env | grep -v PASSWORD | grep -v KEY
           
-      - name: Run report
+      - name: Debug - Test Gmail Connection
+        run: |
+          python -c "
+import smtplib
+try:
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.starttls()
+    print('✅ Gmail SMTP connection successful')
+    server.quit()
+except Exception as e:
+    print(f'❌ Gmail SMTP connection failed: {e}')
+"
+          
+      - name: Run report with verbose output
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -38,15 +57,21 @@ jobs:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
-        run: python daily_news_english.py
-        
-      - name: Upload report artifact (for debugging)
-        if: always()  # Run even if previous step fails
+        run: |
+          echo "Starting script..."
+          python -u daily_news_english.py 2>&1 | tee script_output.log
+          echo "Script finished with exit code: $?"
+          
+      - name: Upload all files for debugging
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: debug-report
+          name: debug-output
           path: |
             *.html
             *.pdf
             *.log
-          retention-days: 7    
+            *.txt
+            script_output.log
+          retention-days: 7
+          if-no-files-found: warn
