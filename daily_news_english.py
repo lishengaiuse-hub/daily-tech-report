@@ -659,57 +659,209 @@ Provide:
         return translated
     
     def analyze_trends(self, news_items):
-        """分析趋势并提取关键洞察"""
-        self.log("📊 分析消费电子趋势...")
+    """分析趋势并提取关键洞察，同时保存相关新闻"""
+    self.log("📊 分析消费电子趋势...")
+    
+    companies = []
+    locations = []
+    products = []
+    technologies = []
+    investments = []
+    
+    # 用于存储与每个热点相关的新闻
+    location_news = {}  # 键：地点，值：新闻列表
+    tech_news_map = {}  # 键：技术，值：新闻列表
+    company_news = {}   # 键：公司，值：新闻列表
+    
+    for item in news_items:
+        text = f"{item.get('title_en', item['title'])} {item.get('summary_en', item.get('summary', ''))}".lower()
         
-        companies = []
-        locations = []
-        products = []
-        technologies = []
-        investments = []
+        # 提取公司
+        for company in ['samsung', 'haier', '海尔', 'midea', '美的', 'xiaomi', 'oppo', 
+                       'foxconn', '富士康', 'rokid', 'htc', 'lg', 'sony', 'boe', '京东方',
+                       'tcl', 'hisense', '海信', 'gree', '格力']:
+            if company.lower() in text:
+                company_clean = company.replace('海尔', 'Haier').replace('美的', 'Midea').replace('富士康', 'Foxconn').replace('京东方', 'BOE')
+                companies.append(company_clean)
+                
+                # 保存公司相关新闻
+                if company_clean not in company_news:
+                    company_news[company_clean] = []
+                if item not in company_news[company_clean]:
+                    company_news[company_clean].append(item)
         
-        for item in news_items:
-            text = f"{item.get('title_en', item['title'])} {item.get('summary_en', item.get('summary', ''))}".lower()
-            
-            # 提取公司
-            for company in ['samsung', 'haier', '海尔', 'midea', '美的', 'xiaomi', 'oppo', 
-                           'foxconn', '富士康', 'rokid', 'htc', 'lg', 'sony', 'boe', '京东方',
-                           'tcl', 'hisense', '海信', 'gree', '格力']:
-                if company.lower() in text:
-                    companies.append(company.replace('海尔', 'Haier').replace('美的', 'Midea')
-                                           .replace('富士康', 'Foxconn').replace('京东方', 'BOE'))
-            
-            # 提取地点
-            for loc in SEA_LOCATIONS[:20]:
-                if loc.lower() in text:
-                    locations.append(loc.title())
-            
-            # 提取产品
-            for prod in ['smartphone', 'glasses', 'wearable', 'refrigerator', 'fridge', 
-                        'air conditioner', 'tv', 'watch', '扫地机器人', 'vacuum',
-                        'washing machine', 'microwave', 'oven', 'capacitor', '电容器']:
-                if prod.lower() in text:
-                    products.append(prod.title())
-            
-            # 提取新兴技术
-            for tech in ['ai', 'ar', 'vr', 'thermoelectric', 'fiber chip', 'flexible', 
-                        'microled', 'oled', 'brain-computer', '脑机', '热电',
-                        'powder', '粉体', 'flame retardant', '阻燃', 'nylon', '尼龙',
-                        'film capacitor', '薄膜电容']:
-                if tech.lower() in text:
-                    technologies.append(tech.upper() if tech in ['ai', 'ar', 'vr'] else tech.title())
-            
-            # 提取投资
-            if 'invest' in text or '$' in text or 'billion' in text or 'million' in text:
-                investments.append('investment mentioned')
+        # 提取地点
+        for loc in SEA_LOCATIONS:
+            if loc.lower() in text:
+                loc_title = loc.title()
+                locations.append(loc_title)
+                
+                # 保存地点相关新闻
+                if loc_title not in location_news:
+                    location_news[loc_title] = []
+                if item not in location_news[loc_title]:
+                    location_news[loc_title].append(item)
         
-        return {
-            'top_companies': Counter(companies).most_common(10),
-            'top_locations': Counter(locations).most_common(5),
-            'top_products': Counter(products).most_common(5),
-            'top_technologies': Counter(technologies).most_common(5),
-            'total_investments': len(investments)
-        }
+        # 提取产品
+        for prod in ['smartphone', 'glasses', 'wearable', 'refrigerator', 'fridge', 
+                    'air conditioner', 'tv', 'watch', '扫地机器人', 'vacuum',
+                    'washing machine', 'microwave', 'oven', 'capacitor', '电容器']:
+            if prod.lower() in text:
+                products.append(prod.title())
+        
+        # 提取新兴技术
+        tech_list = [
+            ('ai', 'AI'), ('人工智能', 'AI'),
+            ('ar', 'AR'), ('增强现实', 'AR'),
+            ('vr', 'VR'), ('虚拟现实', 'VR'),
+            ('thermoelectric', '热电材料'), ('热电', '热电材料'),
+            ('fiber chip', '纤维芯片'), ('纤维芯片', '纤维芯片'),
+            ('flexible', '柔性电子'), ('柔性', '柔性电子'),
+            ('microled', 'MicroLED'), ('oled', 'OLED'),
+            ('brain-computer', '脑机接口'), ('脑机', '脑机接口'),
+            ('powder', '粉体技术'), ('粉体', '粉体技术'),
+            ('flame retardant', '阻燃材料'), ('阻燃', '阻燃材料'),
+            ('nylon', '尼龙'), ('尼龙', '尼龙'),
+            ('film capacitor', '薄膜电容'), ('薄膜电容', '薄膜电容')
+        ]
+        
+        for tech_key, tech_display in tech_list:
+            if tech_key.lower() in text:
+                technologies.append(tech_display)
+                
+                # 保存技术相关新闻
+                if tech_display not in tech_news_map:
+                    tech_news_map[tech_display] = []
+                if item not in tech_news_map[tech_display]:
+                    tech_news_map[tech_display].append(item)
+        
+        # 提取投资
+        if 'invest' in text or '$' in text or 'billion' in text or 'million' in text:
+            investments.append('investment mentioned')
+    
+    return {
+        'top_companies': Counter(companies).most_common(10),
+        'top_locations': Counter(locations).most_common(5),
+        'top_products': Counter(products).most_common(5),
+        'top_technologies': Counter(technologies).most_common(5),
+        'total_investments': len(investments),
+        'location_news': location_news,      # 新增：地点相关新闻
+        'tech_news_map': tech_news_map,      # 新增：技术相关新闻
+        'company_news': company_news         # 新增：公司相关新闻
+    }
+
+    def _create_trends_section(self, trends):
+    """创建趋势部分，显示统计数据和具体新闻"""
+    html = '<div class="trends-section">'
+    
+    # 热门地点（制造热点）
+    html += '<div class="trends-grid">'
+    html += '<div class="trend-card" style="grid-column: span 3;">'
+    html += '<h3>📍 制造热点 - 东南亚建厂动态</h3>'
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+    
+    for location, count in trends['top_locations'][:5]:
+        location_key = location.title()
+        related_news = trends.get('location_news', {}).get(location_key, [])
+        
+        html += f"""
+        <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #ffd700; padding-bottom: 5px;">
+                {location_key} <span style="color: #0066cc;">({count})</span>
+            </h4>
+            <ul style="list-style: none; padding: 0;">
+        """
+        
+        # 显示最多3条相关新闻
+        for news in related_news[:3]:
+            title = news.get('title_en', news['title'])[:50]
+            if len(title) >= 50:
+                title += '...'
+            html += f"""
+            <li style="margin-bottom: 8px; font-size: 0.9em;">
+                <a href="{news['link']}" style="color: #0066cc; text-decoration: none;">📄 {title}</a>
+                <span style="color: #666; font-size: 0.8em; display: block;">{news['source']}</span>
+            </li>
+            """
+        
+        if len(related_news) > 3:
+            html += f'<li style="color: #666; font-size: 0.85em;">... 还有 {len(related_news)-3} 条新闻</li>'
+        
+        html += '</ul></div>'
+    
+    html += '</div></div></div>'  # 结束制造热点部分
+    
+    # 新兴技术
+    html += '<div class="trends-grid" style="margin-top: 30px;">'
+    html += '<div class="trend-card" style="grid-column: span 3;">'
+    html += '<h3>🔬 新兴技术 - 最新技术动态</h3>'
+    html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+    
+    for tech, count in trends['top_technologies'][:5]:
+        tech_key = tech
+        related_news = trends.get('tech_news_map', {}).get(tech_key, [])
+        
+        html += f"""
+        <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+            <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #8b5cf6; padding-bottom: 5px;">
+                {tech_key} <span style="color: #0066cc;">({count})</span>
+            </h4>
+            <ul style="list-style: none; padding: 0;">
+        """
+        
+        # 显示最多3条相关新闻
+        for news in related_news[:3]:
+            title = news.get('title_en', news['title'])[:50]
+            if len(title) >= 50:
+                title += '...'
+            html += f"""
+            <li style="margin-bottom: 8px; font-size: 0.9em;">
+                <a href="{news['link']}" style="color: #8b5cf6; text-decoration: none;">🔬 {title}</a>
+                <span style="color: #666; font-size: 0.8em; display: block;">{news['source']}</span>
+            </li>
+            """
+        
+        if len(related_news) > 3:
+            html += f'<li style="color: #666; font-size: 0.85em;">... 还有 {len(related_news)-3} 条新闻</li>'
+        
+        html += '</ul></div>'
+    
+    html += '</div></div></div>'  # 结束新兴技术部分
+    
+    # 热门公司
+    if trends['top_companies']:
+        html += '<div class="trends-grid" style="margin-top: 30px;">'
+        html += '<div class="trend-card" style="grid-column: span 3;">'
+        html += '<h3>🏢 热门公司 - 最新动态</h3>'
+        html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+        
+        for company, count in trends['top_companies'][:4]:
+            related_news = trends.get('company_news', {}).get(company, [])
+            
+            html += f"""
+            <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #10b981; padding-bottom: 5px;">
+                    {company} <span style="color: #0066cc;">({count})</span>
+                </h4>
+                <ul style="list-style: none; padding: 0;">
+            """
+            
+            for news in related_news[:2]:
+                title = news.get('title_en', news['title'])[:40]
+                if len(title) >= 40:
+                    title += '...'
+                html += f"""
+                <li style="margin-bottom: 8px; font-size: 0.9em;">
+                    <a href="{news['link']}" style="color: #10b981; text-decoration: none;">📊 {title}</a>
+                </li>
+                """
+            
+            html += '</ul></div>'
+        
+        html += '</div></div></div>'
+    
+    html += '</div>'
+    return html
     
     def generate_executive_dashboard(self, news_items, trends):
         """生成专业HTML仪表板"""
