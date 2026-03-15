@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Simple Email Test Script
-Run this to test if email sending works
+Simple Email Test Script - FIXED VERSION
 """
 
 import os
 import yagmail
 import smtplib
+import re
 
 print("=" * 50)
-print("EMAIL TEST SCRIPT")
+print("EMAIL TEST SCRIPT - FIXED VERSION")
 print("=" * 50)
 
 # Get credentials from environment
@@ -26,9 +26,24 @@ if not sender or not password or not recipients_raw:
     print("\n❌ Missing required environment variables!")
     exit(1)
 
-# Parse recipients
-recipients = [email.strip() for email in recipients_raw.replace(';', ',').split(',') if '@' in email]
+# FIXED: Clean up the recipients string
+print("\n🔄 Cleaning recipients string...")
+# Remove asterisks, replace line breaks with commas
+clean_recipients = recipients_raw.replace('*', '').replace('\n', ',').replace('\r', ',').replace(';', ',')
+print(f"   After cleaning: '{clean_recipients}'")
+
+# Split by comma and clean each email
+recipients = []
+for email in clean_recipients.split(','):
+    email = email.strip()
+    if email and '@' in email:
+        recipients.append(email)
+
 print(f"   Parsed recipients: {recipients}")
+
+if not recipients:
+    print("\n❌ No valid email recipients found!")
+    exit(1)
 
 print("\n🔄 Testing SMTP connection...")
 
@@ -62,14 +77,19 @@ except Exception as e:
 try:
     print("\n🔄 Sending test email...")
     yag = yagmail.SMTP(sender, password)
+    
+    for recipient in recipients:
+        print(f"   → Sending to: {recipient}")
+    
     yag.send(
         to=recipients,
-        subject="TEST EMAIL - GitHub Actions",
+        subject="✅ TEST EMAIL - GitHub Actions Working!",
         contents=f"""
-        <h1>Test Email</h1>
+        <h1>✅ Test Successful!</h1>
         <p>This is a test email from GitHub Actions.</p>
-        <p>Time: {__import__('datetime').datetime.now()}</p>
-        <p>If you receive this, email is working!</p>
+        <p><strong>Time:</strong> {__import__('datetime').datetime.now()}</p>
+        <p><strong>Recipients:</strong> {', '.join(recipients)}</p>
+        <p>If you receive this, email is working correctly!</p>
         """
     )
     print("✅ Step 3: Test email sent successfully!")
@@ -78,4 +98,4 @@ except Exception as e:
     print(f"❌ Step 3: Failed to send email: {e}")
     exit(1)
 
-print("\n🎉 ALL TESTS PASSED! Email should arrive in a few minutes.")
+print("\n🎉 ALL TESTS PASSED! Check your inbox in a few minutes.")
