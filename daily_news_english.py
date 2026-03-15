@@ -4,8 +4,14 @@
 Daily Tech Intelligence Report - Complete Fixed Version
 With proper email recipient parsing and error handling
 """
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Daily Tech Intelligence Report - Complete Fixed Version
+"""
 
 import os
+import sys  # ← ADD THIS LINE
 import json
 import hashlib
 import feedparser
