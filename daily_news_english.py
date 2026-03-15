@@ -584,9 +584,15 @@ def main():
     log("\n🤖 STEP 2: Generating report...")
     report_data = generate_report(news_items)
     
+    # Even if report generation partially fails, continue
     if not report_data:
-        log("❌ Report generation failed, exiting", "ERROR")
-        return
+        log("⚠️ Report generation returned None, creating minimal report", "WARNING")
+        report_data = {
+            "executive_summary": "Today's news summary based on fetched articles.",
+            "factory_news": [],
+            "tech_table": [],
+            "expos": []
+        }
     
     # Step 3: Create HTML
     log("\n🎨 STEP 3: Creating HTML...")
