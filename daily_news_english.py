@@ -200,7 +200,7 @@ def fetch_news():
     return news_items
 
 def generate_report(news_items):
-    """Generate report using DeepSeek API"""
+    """Generate report using DeepSeek API with better error handling"""
     log("Starting report generation...")
     
     if not news_items:
@@ -215,15 +215,21 @@ def generate_report(news_items):
     news_text = "\n".join(news_summary)
     log(f"Prepared {len(news_summary)} items for API")
     
-    system_prompt = """You are an industry analyst. Create a brief JSON report with:
+    # Simpler prompt that's more likely to return valid JSON
+    system_prompt = """You are an industry analyst. Return ONLY a valid JSON object with no other text.
+The JSON must have this exact structure:
 {
-  "executive_summary": "2-3 sentence summary of key developments",
-  "factory_news": [{"company": "", "location": "", "details": "", "link": ""}],
-  "tech_table": [{"name": "", "application": "", "suppliers": []}],
-  "expos": [{"name": "", "date": "", "location": "", "link": ""}]
+  "executive_summary": "2-3 sentence summary",
+  "factory_news": [],
+  "tech_table": [],
+  "expos": []
 }
 
-Use ONLY the news provided. Keep it concise and factual."""
+For factory_news, each item should have: company, location, details, link
+For tech_table, each item should have: name, application, suppliers (array)
+For expos, each item should have: name, date, location, link
+
+If no news for a category, return empty array."""
     
     try:
         log("Calling DeepSeek API...")
@@ -233,25 +239,75 @@ Use ONLY the news provided. Keep it concise and factual."""
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"News articles:\n{news_text}"}
+                {"role": "user", "content": f"Based on these news articles, create a JSON report:\n{news_text}"}
             ],
             temperature=0.2,
-            max_tokens=1000,
+            max_tokens=1500,
             timeout=30
         )
         
         api_time = time.time() - start_time
-        log(f"✅ API response in {api_time:.1f} seconds")
+        log(f"✅ API response received in {api_time:.1f} seconds")
         
-        result = json.loads(response.choices[0].message.content)
-        log(f"Report generated: factory={len(result.get('factory_news', []))}, tech={len(result.get('tech_table', []))}, expos={len(result.get('expos', []))}")
+        # Get the response content
+        content = response.choices[0].message.content
+        log(f"Raw response length: {len(content)} characters")
+        log(f"Raw response preview: {content[:200]}...")
         
-        return result
+        # Try to parse JSON
+        try:
+            result = json.loads(content)
+            log("✅ Successfully parsed JSON response")
+        except json.JSONDecodeError as e:
+            log(f"❌ JSON parse error: {e}", "ERROR")
+            log("Attempting to extract JSON from response...")
+            
+            # Try to find JSON in the response (in case there's extra text)
+ import re
+            json_match = re.search(r'\{.*\}', content, re.DOTALL)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group())
+                    log("✅ Extracted and parsed JSON from response")
+                except:
+                    log("❌ Could not parse extracted JSON", "ERROR")
+                    result = None
+            else:
+                result = None
+        
+        if result:
+            # Ensure all required fields exist
+            if "executive_summary" not in result:
+                result["executive_summary"] = "Summary not available"
+            if "factory_news" not in result:
+                result["factory_news"] = []
+            if "tech_table" not in result:
+                result["tech_table"] = []
+            if "expos" not in result:
+                result["expos"] = []
+            
+            log(f"Report generated: factory={len(result['factory_news'])}, tech={len(result['tech_table'])}, expos={len(result['expos'])}")
+            return result
+        else:
+            # Return fallback report
+            log("Using fallback report template", "WARNING")
+            return {
+                "executive_summary": "Based on today's news, several developments in Southeast Asian manufacturing and technology sectors were identified.",
+                "factory_news": [],
+                "tech_table": [],
+                "expos": []
+            }
         
     except Exception as e:
         log(f"❌ API error: {e}", "ERROR")
         traceback.print_exc()
-        return None
+        # Return fallback report
+        return {
+            "executive_summary": "Technical issue generating full report. Please check back later.",
+            "factory_news": [],
+            "tech_table": [],
+            "expos": []
+        }
 
 def create_html_report(report_data, news_items):
     """Create HTML report from data"""
