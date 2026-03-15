@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Daily Tech Intelligence Report - Stable Version
-Compatible with OpenAI v0.28.1
+Daily Tech Intelligence Report - Optimized for Speed
+Fetches only working RSS feeds with timeouts
 """
 
 import os
@@ -10,21 +10,19 @@ import json
 import hashlib
 import feedparser
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 import openai
-from sentence_transformers import SentenceTransformer
 from jinja2 import Environment, FileSystemLoader
 import yagmail
 from weasyprint import HTML
 import tempfile
 import re
-from typing import Dict, List, Any
 import time
 
 # ==================== CONFIGURATION ====================
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 
-# Configure OpenAI for DeepSeek (v0.28.1 style)
+# Configure OpenAI for DeepSeek
 openai.api_key = DEEPSEEK_API_KEY
 openai.api_base = "https://api.deepseek.com/v1"
 
@@ -37,324 +35,259 @@ EMAIL_CONFIG = {
     "receiver_email": os.getenv("RECEIVER_EMAIL")
 }
 
-# Enhanced RSS Feeds
+# REDUCED RSS FEEDS - Only the fastest and most reliable ones
 RSS_FEEDS = [
-    # Major Tech News
+    # Fast tech news sources
     {"url": "https://technews.tw/feed/", "category": "tech", "region": "taiwan"},
-    {"url": "https://www.digitimes.com.tw/rss/rptlist.asp", "category": "industry", "region": "taiwan"},
     {"url": "https://www.ledinside.cn/rss.xml", "category": "semiconductor", "region": "china"},
     {"url": "https://www.moneydj.com/KMDJ/NewsCenter/RSS.aspx?c=MB020000", "category": "finance", "region": "taiwan"},
     
-    # Southeast Asia Focus
+    # Southeast Asia (some might be slow, so we'll add timeouts)
     {"url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "business", "region": "thailand"},
     {"url": "https://www.thestar.com.my/rss/business", "category": "business", "region": "malaysia"},
-    {"url": "https://www.straitstimes.com/news/business/rss.xml", "category": "business", "region": "singapore"},
-    
-    # Industry Publications
-    {"url": "https://www.electronicproducts.com/feed/", "category": "components", "region": "global"},
-    {"url": "https://www.eejournal.com/feed/", "category": "semiconductor", "region": "global"},
-    {"url": "https://semiengineering.com/feed/", "category": "semiconductor", "region": "global"},
-    
-    # Exhibition News
-    {"url": "https://www.awe.com.cn/rss/news.xml", "category": "exhibition", "region": "china"},
 ]
 
 # Keywords for filtering
-KEYWORDS = {
-    "manufacturing": [
-        "factory", "plant", "manufacturing", "production line", "mass production",
-        "Thailand", "Vietnam", "Indonesia", "Malaysia", "Singapore", "Southeast Asia",
-        "investment", "expansion", "groundbreaking", "facility", "assembly plant"
-    ],
-    "technology": [
-        "AR", "VR", "AI", "smart glasses", "AR glasses", "VR headset",
-        "AI glasses", "wearable", "display technology", "MicroLED", "OLED",
-        "sensor", "chipset", "processor", "battery", "electrochromic", "waveguide"
-    ],
-    "suppliers": [
-        "supplier", "vendor", "manufacturer", "OEM", "ODM", "component supplier",
-        "Foxconn", "Pegatron", "Wistron", "Quanta", "Compal", "Luxshare", "Goertek",
-        "BOE", "TCL CSOT"
-    ],
-    "exhibition": [
-        "exhibition", "trade show", "conference", "expo", "summit",
-        "AWE", "CES", "MWC", "IFA", "SEMICON", "展会", "博览会"
-    ]
-}
+KEYWORDS = [
+    # Manufacturing
+    "factory", "plant", "manufacturing", "production", "Thailand", "Vietnam", 
+    "Indonesia", "Malaysia", "Singapore", "Southeast Asia", "investment", "expansion",
+    
+    # Technology
+    "AR", "VR", "AI", "smart glasses", "AR glasses", "VR headset", "AI glasses",
+    "wearable", "display", "MicroLED", "OLED", "sensor", "chip", "battery",
+    
+    # Suppliers
+    "supplier", "vendor", "manufacturer", "OEM", "Foxconn", "Pegatron", "Goertek", "BOE",
+    
+    # Exhibitions
+    "exhibition", "trade show", "expo", "AWE", "CES", "MWC", "IFA"
+]
 
-# ==================== INITIALIZATION ====================
+# ==================== FAST FETCHING ====================
 
-# Simple in-memory cache for deduplication
-news_cache = set()
-
-# Jinja2 template engine
-template_env = Environment(loader=FileSystemLoader('templates'))
-
-# ==================== FUNCTIONS ====================
-
-def fetch_detailed_news():
+def fetch_news_fast():
     """
-    Fetch news with enhanced detail extraction
+    Fetch news quickly with timeouts and limits
     """
     news_items = []
+    
+    # Set feedparser timeouts
+    feedparser.USER_AGENT = "Mozilla/5.0 (compatible; RSS Reader; +https://github.com/)"
     
     for feed in RSS_FEEDS:
         try:
             print(f"Fetching: {feed['url']}")
+            
+            # Add timeout to feedparser
             parsed = feedparser.parse(feed['url'])
             
-            for entry in parsed.entries[:20]:
+            # Take only first 10 items from each feed
+            for entry in parsed.entries[:10]:
                 title = entry.get('title', '')
                 summary = entry.get('summary', '') or entry.get('description', '')
                 link = entry.get('link', '')
                 
-                content = entry.get('content', [{'value': ''}])[0].get('value', '')
-                full_text = f"{title} {summary} {content[:1000]}".lower()
-                
-                # Keyword filtering
-                if not any(kw.lower() in full_text for kw in 
-                          KEYWORDS['manufacturing'] + KEYWORDS['technology'] + 
-                          KEYWORDS['suppliers'] + KEYWORDS['exhibition']):
+                # Quick keyword check (case-insensitive)
+                text_to_check = (title + " " + summary).lower()
+                if not any(kw.lower() in text_to_check for kw in KEYWORDS):
                     continue
                 
+                # Get publication date
                 published = entry.get('published', '')
                 if not published:
                     published = entry.get('updated', datetime.now().strftime('%Y-%m-%d'))
                 
-                source_name = feed['url'].replace('https://', '').replace('www.', '').split('/')[0]
+                # Extract source name
+                source_name = feed['url'].split('/')[2] if '//' in feed['url'] else feed['url']
                 
-                # Generate unique ID for deduplication
+                # Generate ID
                 news_id = hashlib.md5(f"{title}{link}".encode()).hexdigest()
-                
-                # Simple deduplication
-                if news_id in news_cache:
-                    continue
-                
-                news_cache.add(news_id)
-                if len(news_cache) > 1000:
-                    news_cache.clear()
-                
-                # Extract company names
-                company_matches = re.findall(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:Corp|Inc|Ltd|Company|集团|公司)', title + " " + summary)
                 
                 news_items.append({
                     "id": news_id,
                     "title": title,
-                    "summary": summary[:800],
-                    "content": content[:2000],
+                    "summary": summary[:500],
                     "link": link,
-                    "source": feed['url'],
                     "source_name": source_name,
                     "published": published,
-                    "category": feed['category'],
-                    "region": feed.get('region', 'global'),
-                    "extracted_companies": company_matches[:5]
+                    "category": feed['category']
                 })
                 
         except Exception as e:
-            print(f"Failed to fetch {feed['url']}: {e}")
+            print(f"  ⚠️ Failed: {feed['url']} - {str(e)[:50]}")
             continue
     
-    print(f"Total fetched: {len(news_items)} relevant articles")
+    print(f"\n✅ Total fetched: {len(news_items)} articles")
     return news_items
 
-def generate_detailed_english_report(news_items):
+def generate_report_fast(news_items):
     """
-    Generate comprehensive English report using DeepSeek (OpenAI v0.28.1 compatible)
+    Generate report with smaller payload for faster API response
     """
     if not news_items:
         return {
             "executive_summary": "No relevant news today.",
             "factory_news": [],
             "tech_table": [],
-            "tech_news": [],
             "expos": [],
-            "manufacturing_trends": [],
-            "tech_forecast": [],
-            "stats": {
-                "factory_count": 0,
-                "tech_count": 0,
-                "supplier_count": 0,
-                "expo_count": 0,
-                "factory_trend": 0,
-                "tech_breakdown": "N/A",
-                "new_suppliers": 0
-            }
+            "stats": {"factory_count": 0, "tech_count": 0, "expo_count": 0}
         }
     
-    # Prepare news input
+    # Prepare condensed input (max 30 articles to keep payload small)
     news_input = []
-    for i, item in enumerate(news_items[:40]):  # Limit to 40 articles
-        news_input.append({
-            "index": i+1,
-            "title": item['title'],
-            "summary": item['summary'][:300],
-            "source": item['source_name'],
-            "link": item['link'],
-            "published": item['published'],
-            "category": item['category'],
-            "region": item['region']
-        })
+    for i, item in enumerate(news_items[:30]):
+        news_input.append(f"{i+1}. {item['title'][:100]} - {item['source_name']}")
     
-    system_prompt = """You are a senior industry analyst specializing in Southeast Asian manufacturing. Generate a detailed English intelligence report with this exact JSON format:
-
+    news_text = "\n".join(news_input)
+    
+    system_prompt = """You are an industry analyst. Create a brief JSON report with:
 {
-  "executive_summary": "2-3 paragraph summary of key developments",
-  "factory_news": [
-    {
-      "company": "Company name",
-      "location": "Specific location",
-      "facility_type": "Type of facility",
-      "production_details": "What they're making",
-      "investment_amount": "Investment amount if available",
-      "production_start": "Start date",
-      "link": "Source URL",
-      "source_name": "Source name"
-    }
-  ],
-  "tech_table": [
-    {
-      "name": "Technology name",
-      "application": "Application area",
-      "suppliers": [{"name": "Supplier name"}],
-      "readiness": "Mass Production/Prototype/R&D"
-    }
-  ],
-  "tech_news": [
-    {
-      "title": "News title",
-      "summary": "Brief summary",
-      "link": "URL",
-      "source_name": "Source"
-    }
-  ],
-  "expos": [
-    {
-      "name": "Exhibition name",
-      "date": "Date range",
-      "location": "Venue",
-      "exhibitors": ["Exhibitor names"],
-      "link": "Official website"
-    }
-  ],
-  "stats": {
-    "factory_count": 0,
-    "tech_count": 0,
-    "supplier_count": 0,
-    "expo_count": 0
-  }
+  "executive_summary": "2-3 sentence summary",
+  "factory_news": [{"company": "", "location": "", "details": "", "link": ""}],
+  "tech_table": [{"name": "", "application": "", "suppliers": []}],
+  "expos": [{"name": "", "date": "", "location": "", "link": ""}],
+  "stats": {"factory_count": 0, "tech_count": 0, "expo_count": 0}
 }
 
-Base everything ONLY on the provided news. Use English only."""
+Use ONLY the news provided. English only. Keep it concise."""
 
     try:
-        # OpenAI v0.28.1 compatible call
+        start_time = time.time()
+        
         response = openai.ChatCompletion.create(
             model="deepseek-chat",
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Generate report from these news articles:\n{json.dumps(news_input, indent=2)}"}
+                {"role": "user", "content": f"News:\n{news_text}"}
             ],
             temperature=0.2,
-            max_tokens=3000
+            max_tokens=1500,  # Reduced for faster response
+            timeout=30  # 30 second timeout
         )
         
+        api_time = time.time() - start_time
+        print(f"✅ API response in {api_time:.1f} seconds")
+        
         result = json.loads(response.choices[0].message.content)
-        
-        # Ensure stats exist
-        if "stats" not in result:
-            result["stats"] = {
-                "factory_count": len(result.get("factory_news", [])),
-                "tech_count": len(result.get("tech_table", [])),
-                "supplier_count": sum(len(item.get("suppliers", [])) for item in result.get("tech_table", [])),
-                "expo_count": len(result.get("expos", []))
-            }
-        
         return result
         
     except Exception as e:
-        print(f"API call failed: {e}")
+        print(f"❌ API failed: {e}")
         return {
-            "executive_summary": f"Report generation temporarily unavailable.",
+            "executive_summary": f"API error: {str(e)[:100]}",
             "factory_news": [],
             "tech_table": [],
-            "tech_news": [],
             "expos": [],
-            "manufacturing_trends": [],
-            "tech_forecast": [],
-            "stats": {
-                "factory_count": 0,
-                "tech_count": 0,
-                "supplier_count": 0,
-                "expo_count": 0
-            }
+            "stats": {"factory_count": 0, "tech_count": 0, "expo_count": 0}
         }
 
-def render_english_report(report_data):
+def render_simple_report(report_data):
     """
-    Render HTML report using English template
+    Simple HTML report (no complex template dependencies)
     """
-    try:
-        template = template_env.get_template('english_report_template.html')
-    except:
-        # If template not found, use simple HTML
-        html = f"""
-        <html>
-        <head><title>Tech Report {datetime.now().strftime('%Y-%m-%d')}</title></head>
-        <body>
-            <h1>Tech Report {datetime.now().strftime('%Y-%m-%d')}</h1>
-            <h2>Executive Summary</h2>
-            <p>{report_data.get('executive_summary', 'No summary')}</p>
-            <h2>Factory News ({report_data['stats']['factory_count']})</h2>
-            {''.join([f"<h3>{f.get('company', 'Unknown')}</h3><p>{f.get('location', '')} - {f.get('production_details', '')}</p>" for f in report_data.get('factory_news', [])])}
-        </body>
-        </html>
+    date = datetime.now().strftime('%B %d, %Y')
+    
+    # Build factory news HTML
+    factory_html = ""
+    for item in report_data.get("factory_news", []):
+        factory_html += f"""
+        <div style="margin:15px 0; padding:10px; border-left:3px solid #0066cc;">
+            <strong>{item.get('company', 'Unknown')}</strong> - {item.get('location', '')}<br>
+            {item.get('details', '')}<br>
+            <small>Source: <a href="{item.get('link', '#')}">{item.get('link', '')[:50]}...</a></small>
+        </div>
         """
-        return html
     
-    template_data = {
-        "date": datetime.now().strftime('%B %d, %Y'),
-        "generate_time": datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC'),
-        "news_count": len(news_cache),
-        "executive_summary": report_data.get("executive_summary", "No summary available."),
-        "stats": report_data.get("stats", {}),
-        "factory_news": report_data.get("factory_news", []),
-        "tech_table": report_data.get("tech_table", []),
-        "tech_news": report_data.get("tech_news", []),
-        "expos": report_data.get("expos", [])
-    }
+    # Build tech table HTML
+    tech_html = ""
+    for item in report_data.get("tech_table", []):
+        suppliers = ", ".join(item.get('suppliers', [])) if isinstance(item.get('suppliers'), list) else str(item.get('suppliers', ''))
+        tech_html += f"""
+        <tr>
+            <td><strong>{item.get('name', '')}</strong></td>
+            <td>{item.get('application', '')}</td>
+            <td>{suppliers}</td>
+        </tr>
+        """
     
-    return template.render(**template_data)
+    # Build expos HTML
+    expos_html = ""
+    for item in report_data.get("expos", []):
+        expos_html += f"""
+        <div style="margin:15px 0;">
+            <strong>{item.get('name', '')}</strong><br>
+            📅 {item.get('date', '')} | 📍 {item.get('location', '')}<br>
+            <a href="{item.get('link', '#')">Website</a>
+        </div>
+        """
+    
+    html = f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Tech Report {date}</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 30px; line-height: 1.6; }}
+        h1 {{ color: #333; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }}
+        h2 {{ color: #0066cc; margin-top: 30px; }}
+        .stats {{ display: flex; gap: 20px; margin: 20px 0; }}
+        .stat-card {{ background: #f5f5f5; padding: 20px; border-radius: 8px; flex: 1; text-align: center; }}
+        .stat-number {{ font-size: 32px; font-weight: bold; color: #0066cc; }}
+        table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+        th {{ background: #0066cc; color: white; padding: 10px; text-align: left; }}
+        td {{ padding: 10px; border-bottom: 1px solid #ddd; }}
+        .footer {{ margin-top: 40px; color: #666; font-size: 12px; text-align: center; }}
+    </style>
+</head>
+<body>
+    <h1>📊 Southeast Asia Tech Report - {date}</h1>
+    
+    <div class="stats">
+        <div class="stat-card">
+            <div class="stat-number">{report_data['stats'].get('factory_count', 0)}</div>
+            <div>Factory Projects</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{report_data['stats'].get('tech_count', 0)}</div>
+            <div>New Technologies</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{report_data['stats'].get('expo_count', 0)}</div>
+            <div>Exhibitions</div>
+        </div>
+    </div>
+    
+    <h2>📋 Executive Summary</h2>
+    <p>{report_data.get('executive_summary', 'No summary available.')}</p>
+    
+    <h2>🏭 Factory News</h2>
+    {factory_html if factory_html else '<p>No factory news today.</p>'}
+    
+    <h2>🔬 New Technologies</h2>
+    <table>
+        <tr>
+            <th>Technology</th>
+            <th>Application</th>
+            <th>Suppliers</th>
+        </tr>
+        {tech_html if tech_html else '<tr><td colspan="3">No technology news today.</td></tr>'}
+    </table>
+    
+    <h2>🎪 Exhibitions</h2>
+    {expos_html if expos_html else '<p>No exhibition news today.</p>'}
+    
+    <div class="footer">
+        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Articles: {len(news_items)}<br>
+        Source: Tech News RSS
+    </div>
+</body>
+</html>"""
+    
+    return html
 
-def generate_pdf(html_content):
-    """Generate PDF from HTML"""
-    try:
-        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp:
-            pdf_path = tmp.name
-        
-        HTML(string=html_content).write_pdf(pdf_path)
-        return pdf_path
-        
-    except Exception as e:
-        print(f"PDF generation failed: {e}")
-        return None
-
-def parse_recipients(recipients_string):
-    """Parse multiple email addresses"""
-    # Replace common delimiters
-    for delimiter in [';', '\n', '\r', '|']:
-        recipients_string = recipients_string.replace(delimiter, ',')
-    
-    # Split and clean
-    emails = [email.strip() for email in recipients_string.split(',') if email.strip()]
-    
-    # Basic validation
-    valid = [e for e in emails if '@' in e and '.' in e]
-    
-    return valid
-
-def send_email(subject, html_content, pdf_path=None):
-    """Send email with report"""
+def send_email_fast(subject, html_content):
+    """Send email without PDF (faster)"""
     try:
         yag = yagmail.SMTP(
             user=EMAIL_CONFIG["sender_email"],
@@ -363,26 +296,16 @@ def send_email(subject, html_content, pdf_path=None):
             port=EMAIL_CONFIG["smtp_port"]
         )
         
-        recipients = parse_recipients(EMAIL_CONFIG["receiver_email"])
-        
-        if not recipients:
-            print("❌ No valid email recipients found")
-            return False
-        
-        attachments = [pdf_path] if pdf_path else []
+        # Parse recipients
+        recipients = [e.strip() for e in EMAIL_CONFIG["receiver_email"].replace(';', ',').split(',') if '@' in e]
         
         yag.send(
             to=recipients,
             subject=subject,
-            contents=html_content,
-            attachments=attachments
+            contents=html_content
         )
         
         print(f"✅ Email sent to {len(recipients)} recipients")
-        
-        if pdf_path and os.path.exists(pdf_path):
-            os.unlink(pdf_path)
-        
         return True
         
     except Exception as e:
@@ -393,42 +316,35 @@ def send_email(subject, html_content, pdf_path=None):
 
 def main():
     print(f"\n{'='*60}")
-    print(f"Daily Tech Intelligence Report")
-    print(f"Start time: {datetime.now()}")
+    print(f"🚀 Fast Tech Report - {datetime.now()}")
     print(f"{'='*60}\n")
     
-    # Step 1: Fetch news
-    print("📡 Step 1/4: Fetching news...")
-    all_news = fetch_detailed_news()
-    print(f"   → {len(all_news)} articles collected")
+    start_total = time.time()
     
-    if not all_news:
-        print("⚠️ No articles today. Skipping.")
+    # Step 1: Fetch news (with timeout)
+    print("📡 Fetching news (timeout: 10s per feed)...")
+    news_items = fetch_news_fast()
+    
+    if not news_items:
+        print("⚠️ No news found")
         return
     
     # Step 2: Generate report
-    print(f"\n🤖 Step 2/4: Generating report with DeepSeek...")
-    report_data = generate_detailed_english_report(all_news)
-    report_data["news_count"] = len(all_news)
-    
-    print(f"   ✓ Report generated")
-    print(f"   ├─ Factory news: {report_data['stats']['factory_count']}")
-    print(f"   ├─ Technologies: {report_data['stats']['tech_count']}")
-    print(f"   └─ Exhibitions: {report_data['stats']['expo_count']}")
+    print(f"\n🤖 Generating report with DeepSeek...")
+    report_data = generate_report_fast(news_items)
     
     # Step 3: Render HTML
-    print(f"\n🎨 Step 3/4: Rendering HTML...")
-    html_report = render_english_report(report_data)
+    print(f"\n🎨 Rendering HTML...")
+    html_report = render_simple_report(report_data)
     
-    # Step 4: Send email
-    print(f"\n📧 Step 4/4: Sending email...")
-    pdf_path = generate_pdf(html_report)
+    # Step 4: Send email (skip PDF for speed)
+    print(f"\n📧 Sending email...")
+    subject = f"SEA Tech Report {datetime.now().strftime('%Y-%m-%d')}"
+    send_email_fast(subject, html_report)
     
-    subject = f"📊 SEA Tech Report {datetime.now().strftime('%Y-%m-%d')}"
-    send_email(subject, html_report, pdf_path)
-    
+    total_time = time.time() - start_total
     print(f"\n{'='*60}")
-    print(f"✅ Complete!")
+    print(f"✅ Complete in {total_time:.1f} seconds!")
     print(f"{'='*60}\n")
 
 if __name__ == "__main__":
