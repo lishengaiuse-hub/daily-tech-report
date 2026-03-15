@@ -47,95 +47,45 @@ EMAIL_CONFIG = {
 # ==================== 完整RSS源列表 ====================
 RSS_FEEDS = [
     # ===== 中文科技媒体（全面覆盖）=====
-    # TechNews 台湾 - 电子制造
     {"url": "https://technews.tw/feed/", "category": "tech", "region": "taiwan", "lang": "zh"},
     {"url": "https://finance.technews.tw/feed/", "category": "finance", "region": "taiwan", "lang": "zh"},
-    
-    # LEDinside - 显示产业、消费电子组件
     {"url": "https://www.ledinside.cn/rss.xml", "category": "display", "region": "china", "lang": "zh"},
     {"url": "https://www.ledinside.com/news/feed", "category": "display", "region": "global", "lang": "en"},
-    
-    # Digitimes - 半导体和电子制造
     {"url": "https://www.digitimes.com.tw/rss/rptlist.asp", "category": "semiconductor", "region": "taiwan", "lang": "zh"},
-    
-    # 中国金融与商业新闻
     {"url": "https://www.21jingji.com/rss/", "category": "business", "region": "china", "lang": "zh"},
     {"url": "http://world.people.com.cn/rss/index.xml", "category": "business", "region": "china", "lang": "zh"},
     {"url": "https://ep.ycwb.com/rss/", "category": "business", "region": "china", "lang": "zh"},
     {"url": "https://epaper.guanhai.com.cn/rss/", "category": "business", "region": "china", "lang": "zh"},
     {"url": "https://news.cnyes.com/rss", "category": "tech", "region": "taiwan", "lang": "zh"},
     
-    # ===== 已整合的中文科技资源 =====
-    
-    # 中国粉体网 - 粉体技术、材料科学
-    # 涵盖先进材料、粉末加工、电子制造相关技术
+    # ===== 新增中文科技资源 =====
     {"url": "http://www.cnpowder.com.cn/rss/", "category": "materials", "region": "china", "lang": "zh"},
-    
-    # 寻材问料 - 材料解决方案平台
-    # 50万+材料数据库，80万+供应商数据库，连接制造商与材料供应商
     {"url": "http://www.materials.cn/rss/", "category": "materials", "region": "china", "lang": "zh"},
-    
-    # 新材料在线 - 新材料行业平台
-    # 领先的新材料数字平台，覆盖消费电子、半导体、先进制造的材料突破
     {"url": "https://www.xincailiao.com/rss/", "category": "materials", "region": "china", "lang": "zh"},
-    
-    # 霞光社 - 全球市场与出海洞察
-    # 聚焦中国制造走向全球，东南亚市场，跨境电商出海策略
     {"url": "https://xiaguangshe.com/feed/", "category": "business", "region": "china", "lang": "zh"},
     {"url": "https://xiaguangshe.com/en/feed/", "category": "business", "region": "china", "lang": "en"},
-    
-    # 艾邦高分子 - 高分子与先进材料平台
-    # 覆盖阻燃材料、尼龙、薄膜电容器、新能源汽车材料、电子电器应用
     {"url": "https://www.aibang.com/feed/", "category": "materials", "region": "china", "lang": "zh"},
     {"url": "https://www.aibang.com/news/feed/", "category": "industry", "region": "china", "lang": "zh"},
-    
-    # 艾邦旗下细分网站
     {"url": "https://www.aibang.com/category/manufacturing/feed/", "category": "manufacturing", "region": "china", "lang": "zh"},
     {"url": "https://www.aibang.com/category/materials/feed/", "category": "materials", "region": "china", "lang": "zh"},
     
-    # China Daily - 中国科技突破的官方英文报道
+    # ===== 其他中文科技资源 =====
     {"url": "https://www.chinadaily.com.cn/rss/business_rss.xml", "category": "business", "region": "china", "lang": "en"},
     {"url": "https://www.chinadailyhk.com/rss", "category": "tech", "region": "china", "lang": "en"},
-    
-    # 中国科学院 - 前沿材料研究
     {"url": "https://english.cas.cn/news/rss/", "category": "research", "region": "china", "lang": "en"},
     {"url": "http://www.cas.cn/rss/", "category": "research", "region": "china", "lang": "zh"},
-    
-    # 复旦大学研究 - 纤维芯片、脑机接口
     {"url": "https://news.fudan.edu.cn/rss.xml", "category": "research", "region": "china", "lang": "zh"},
-    
-    # GfK中国 - 消费电子市场研究
     {"url": "https://www.gfk.com/insights/rss", "category": "market", "region": "global", "lang": "en"},
-    
-    # 证券时报 - 消费电子产业分析
     {"url": "https://stcn.com/rss/finance.xml", "category": "finance", "region": "china", "lang": "zh"},
-    
-    # 雪球 - 消费电子投资社区
     {"url": "https://xueqiu.com/rss/", "category": "finance", "region": "china", "lang": "zh"},
-    
-    # 国家科技技术创新中心 - 研究突破
     {"url": "https://en.ncsti.gov.cn/Latest/rss/", "category": "research", "region": "china", "lang": "en"},
-    
-    # ARY News - 技术突破报道
     {"url": "https://arynews.tv/category/technology/feed/", "category": "tech", "region": "global", "lang": "en"},
-    
-    # 京东研究 - 消费电子趋势数据
     {"url": "https://ir.jd.com/rss", "category": "market", "region": "china", "lang": "en"},
-    
-    # Rokid - AI眼镜制造商新闻
     {"url": "https://www.rokid.com/blog/feed/", "category": "wearables", "region": "china", "lang": "en"},
-    
-    # COLMO - AI智能家电
     {"url": "https://www.colmo.com.cn/news/feed/", "category": "appliances", "region": "china", "lang": "zh"},
-    
-    # 36Kr - 中国科技媒体
     {"url": "https://36kr.com/feed", "category": "tech", "region": "china", "lang": "zh"},
     {"url": "https://36kr.com/feed/english", "category": "tech", "region": "china", "lang": "en"},
-    
-    # KrASIA - 中国和东南亚科技英文报道
     {"url": "https://www.kr-asia.com/feed", "category": "tech", "region": "asia", "lang": "en"},
-    
-    # Jing Daily - 中国科技消费趋势
     {"url": "https://jingdaily.com/category/tech/feed/", "category": "trends", "region": "china", "lang": "en"},
     
     # ===== 全球科技媒体 =====
@@ -147,27 +97,16 @@ RSS_FEEDS = [
     {"url": "https://www.androidauthority.com/feed/", "category": "mobile", "region": "global", "lang": "en"},
     
     # ===== 东南亚新闻 =====
-    # 越南
     {"url": "https://www.vietnam-briefing.com/news/feed/", "category": "business", "region": "vietnam", "lang": "en"},
     {"url": "https://e.vnexpress.net/rss/business.rss", "category": "business", "region": "vietnam", "lang": "en"},
-    
-    # 泰国
     {"url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "business", "region": "thailand", "lang": "en"},
     {"url": "https://thailand-briefing.com/news/feed/", "category": "business", "region": "thailand", "lang": "en"},
-    
-    # 马来西亚
     {"url": "https://www.thestar.com.my/rss/business", "category": "business", "region": "malaysia", "lang": "en"},
     {"url": "https://www.nst.com.my/rss/business", "category": "business", "region": "malaysia", "lang": "en"},
-    
-    # 新加坡
     {"url": "https://www.straitstimes.com/news/business/rss.xml", "category": "business", "region": "singapore", "lang": "en"},
     {"url": "https://sbr.com.sg/rss.xml", "category": "business", "region": "singapore", "lang": "en"},
-    
-    # 印度尼西亚
     {"url": "https://indonesia-briefing.com/news/feed/", "category": "business", "region": "indonesia", "lang": "en"},
     {"url": "https://www.thejakartapost.com/rss/business.xml", "category": "business", "region": "indonesia", "lang": "en"},
-    
-    # 菲律宾
     {"url": "https://www.philstar.com/rss/business", "category": "business", "region": "philippines", "lang": "en"},
     
     # ===== 行业出版物 =====
@@ -180,43 +119,28 @@ RSS_FEEDS = [
 
 # 东南亚地点
 SEA_LOCATIONS = [
-    # 国家
     'vietnam', '越南', 'thailand', '泰国', 'indonesia', '印尼', '印度尼西亚',
     'malaysia', '马来西亚', 'singapore', '新加坡', 'philippines', '菲律宾',
     'myanmar', '缅甸', 'cambodia', '柬埔寨', 'laos', '老挝', 'brunei', '文莱',
     'asean', '东盟', 'southeast asia', '东南亚',
-    
-    # 越南地点
     'bac ninh', '北宁', 'thai nguyen', '太原', 'ho chi minh', '胡志明',
     'hanoi', '河内', 'haiphong', '海防', 'dong nai', '同奈',
     'binh duong', '平阳', 'long an', '隆安', 'bac giang', '北江',
     'vinh phuc', '永福',
-    
-    # 泰国地点
     'bangkok', '曼谷', 'chon buri', '春武里', 'chonburi', 'rayong', '罗勇',
     'ayutthaya', '大城', 'pathum thani', '巴吞他尼', 'samut prakan', '北榄',
     'lamphun', '南奔', 'prachin buri', '巴真', 'amata', '安美德',
     'hemaraj', '赫马拉', 'eastern seaboard', '东部经济走廊', 'eec',
-    
-    # 印度尼西亚地点
     'jakarta', '雅加达', 'west java', '西爪哇', 'central java', '中爪哇',
     'east java', '东爪哇', 'batam', '巴淡', 'banten', '万丹',
     'bekasi', '勿加泗', 'karawang', '加拉璜', 'tangerang', '唐格朗',
-    
-    # 马来西亚地点
     'kuala lumpur', '吉隆坡', 'penang', '槟城', 'selangor', '雪兰莪',
     'johor', '柔佛', 'melaka', '马六甲', 'kedah', '吉打', 'kulim', '居林',
-    
-    # 新加坡
-    'singapore', '新加坡',
-    
-    # 菲律宾
     'manila', '马尼拉', 'cebu', '宿务'
 ]
 
 # 消费电子产品与技术
 CONSUMER_ELECTRONICS = [
-    # ===== 白色家电 / 家用电器 =====
     'refrigerator', 'fridge', '冷柜', '冰箱', 'freezer', '冰柜',
     'washing machine', 'washer', '洗衣机',
     'air conditioner', 'ac', '空调',
@@ -224,20 +148,14 @@ CONSUMER_ELECTRONICS = [
     'dishwasher', '洗碗机',
     'water heater', '热水器',
     'vacuum', '扫地机器人', '吸尘器',
-    
-    # ===== 厨房电器 =====
     'kitchen appliance', '厨房电器',
     'cooktop', '灶具', 'range hood', '抽油烟机',
     'toaster', '烤面包机', 'coffee maker', '咖啡机',
     'food processor', '食品加工机', 'rice cooker', '电饭煲',
-    
-    # ===== 手机 =====
     'smartphone', 'phone', 'mobile', '手机',
     'galaxy', 'samsung', 'apple', 'iphone', 
     'xiaomi', 'oppo', 'vivo', 'realme', 'oneplus',
     'foldable', '折叠屏', '5g', '5G',
-    
-    # ===== 可穿戴数字产品 =====
     'wearable', '可穿戴',
     'smart watch', 'smartwatch', '智能手表',
     'ai glasses', 'AI眼镜', '智能眼镜',
@@ -245,31 +163,22 @@ CONSUMER_ELECTRONICS = [
     'vr headset', 'VR头显', '虚拟现实',
     'headphone', 'earbud', '耳机',
     'fitness tracker', '手环',
-    
-    # ===== 消费电子品牌 =====
     'haier', '海尔', 'midea', '美的', 'hisense', '海信',
     'tcl', '奥马', 'gree', '格力', 'homa', '奥马',
     'samsung', 'lg', 'sony', 'panasonic', 'toshiba', 'sharp',
     'foxconn', '富士康', 'pegatron', '和硕', 'luxshare', '立讯',
     'goertek', '歌尔', 'lens', '伯恩', 'boe', '京东方',
     'rokid', 'colmo', 'htc', '宏达电',
-    
-    # ===== 制造 =====
     'factory', 'plant', 'manufacturing', 'production', 'assembly', '生产线', '量产',
     'facility', '新建工厂', '投产', '开工', '奠基', 'investment', 'invest',
     'supplier', '供应链', 'vendor', '供应商', 'localization', '本地化',
-    
-    # ===== 研究与创新 =====
     'breakthrough', '突破', 'innovation', '创新', 'research', '研究',
     'prototype', '原型', 'commercialization', '商业化', 'mass production', '量产',
-    
-    # ===== 展会 =====
     'exhibition', 'expo', 'conference', 'trade show', '展', 'awe', 'ces', 'mwc', 'ifa'
 ]
 
-# ===== 新材料与新兴技术关键词 =====
+# 新材料与新兴技术关键词
 EMERGING_TECH_KEYWORDS = [
-    # 材料科学（来自新资源）
     '粉体', 'powder', '颗粒', 'particle', '纳米', 'nano',
     '涂层', 'coating', '薄膜', 'thin film', '沉积', 'deposition',
     '材料解决方案', 'material solution', '供应商数据库', 'supplier database',
@@ -279,58 +188,35 @@ EMERGING_TECH_KEYWORDS = [
     '复合材料', 'composite', '高分子', 'polymer',
     '金属材料', 'metal', '陶瓷材料', 'ceramic',
     '材料突破', 'material breakthrough', '材料创新', 'material innovation',
-    
-    # 出海与全球化（来自霞光社）
     '出海', 'going global', '全球化', 'globalization',
     '东南亚市场', 'Southeast Asia market', '越南建厂', 'Vietnam factory',
     '泰国投资', 'Thailand investment', '印尼制造', 'Indonesia manufacturing',
     '跨境电商', 'cross-border e-commerce', '海外扩张', 'overseas expansion',
-    
-    # 高分子与电容器（来自艾邦）
     '阻燃', 'flame retardant', '阻燃材料', 'flame retardant material',
     '尼龙', 'nylon', '聚酰胺', 'polyamide',
     '薄膜电容', 'film capacitor', '电容器', 'capacitor',
     '电容膜', 'capacitor film',
     '改性塑料', 'modified plastic', '工程塑料', 'engineering plastic',
     '新能源汽车材料', 'EV materials', '电池材料', 'battery materials',
-    
-    # 消费电子材料
     '智能家居材料', 'smart home materials', '家电材料', 'appliance materials',
     '消费电子材料', 'consumer electronics materials', '手机材料', 'phone materials',
     '可穿戴材料', 'wearable materials', 'AR/VR材料', 'AR/VR materials',
-    
-    # 热电与能源材料
     'thermoelectric', '热电', 'body heat', '体温发电',
     'fiber chip', '纤维芯片', 'electronic fiber', '电子纤维',
     'flexible electronics', '柔性电子', 'wearable tech', '可穿戴技术',
     'conductive', '导电',
-    
-    # AI集成
     'ai glasses', 'AI眼镜', 'smart glasses', '智能眼镜',
     'ai assistant', 'AI助手', 'ai butler', 'AI管家',
     'voice command', '语音指令',
-    
-    # 智能家居
     'smart home', '智能家居', 'whole-home', '全屋智能',
     'proactive intelligence', '主动智能', 'scene-based', '场景化',
     'smart appliance', '智能家电', 'ai appliance', 'AI家电',
-    
-    # 显示技术
     'microled', 'oled', 'display', '屏幕',
     'foldable', '折叠屏', 'flexible display', '柔性屏',
-    
-    # 新兴产品
     'digital nostalgia', '数码复古', 'ccd camera', 'CCD相机',
     'dumb phone', '功能机', 'flip phone', '翻盖手机',
     'wired headphones', '有线耳机', 'retro tech', '复古科技',
     'brain-computer', '脑机接口', 'bci', '神经接口',
-    
-    # 研究突破
-    'breakthrough', '突破', 'innovation', '创新',
-    'prototype', '原型', 'commercialization', '商业化',
-    'scalable', '可扩展',
-    
-    # 市场趋势
     'ai consumption', 'AI消费', 'smart living', '智慧生活',
     'consumer upgrade', '消费升级', 'premiumization', '高端化',
     'export', '出口', 'overseas expansion', '出海',
@@ -441,26 +327,19 @@ class TechIntelligenceDashboard:
         self.log("🔄 将中文科技新闻翻译成英文...")
         translated = []
         
-        # 扩展的技术指标，用于更好的检测
+        # 扩展的技术指标
         technical_indicators = [
-            # 研究术语
             '研究', '研发', '科研', '实验室', '突破', '发现', '创新',
             '材料', '芯片', '半导体', '电路', '纤维', '聚合物',
             '技术', '工艺', '制备', '合成', '性能', '效率',
-            
-            # 材料科学特定
             '粉体', '粉末', '颗粒', '纳米', '涂层', '薄膜', '沉积',
             '高分子', '复合材料', '金属材料', '陶瓷',
             '阻燃', '尼龙', '聚酰胺', '电容器', '电容膜',
             '改性', '工程塑料', '特种材料', '功能材料',
             '新材料', '先进材料',
-            
-            # 英文术语
             'research', 'development', 'breakthrough', 'innovation',
             'material', 'chip', 'semiconductor', 'circuit', 'fiber',
             'technology', 'process', 'synthesis', 'performance',
-            
-            # 特定技术
             '热电', '体温发电', '纤维芯片', '电子纤维', '柔性电子',
             '脑机接口', '神经接口', 'microled', 'oled', '量子点',
             'thermoelectric', 'fiber chip', 'flexible electronics',
@@ -487,8 +366,6 @@ class TechIntelligenceDashboard:
             '合成': 'synthesis',
             '性能': 'performance characteristics',
             '效率': 'efficiency',
-            
-            # 新材料术语
             '粉体': 'powder materials',
             '纳米材料': 'nanomaterials',
             '涂层技术': 'coating technology',
@@ -506,19 +383,14 @@ class TechIntelligenceDashboard:
             '先进材料': 'advanced materials',
         }
         
-        for news in self.chinese_news[:25]:  # 增加到25篇文章
+        for news in self.chinese_news[:25]:
             try:
-                # 合并标题和摘要进行分析
                 full_text = news['title'] + ' ' + news['summary']
                 text_lower = full_text.lower()
                 
-                # 检测是否为研究/技术内容
                 is_technical = any(term in full_text for term in technical_indicators)
-                
-                # 检查特定突破指标
                 is_breakthrough = any(term in full_text for term in ['突破', '首次', '世界领先', '重大', '里程碑', '首创'])
                 
-                # 检查特定技术领域
                 tech_areas = []
                 if '热电' in full_text or 'thermoelectric' in text_lower:
                     tech_areas.append('thermoelectric materials')
@@ -543,9 +415,7 @@ class TechIntelligenceDashboard:
                 if '薄膜电容' in full_text or 'film capacitor' in text_lower:
                     tech_areas.append('film capacitors')
                 
-                # 准备增强提示，包含词典上下文
                 if is_technical:
-                    # 在提示中包含技术术语词典以确保准确性
                     dict_context = "\n".join([f"- {chinese}: {english}" for chinese, english in tech_term_dictionary.items()])
                     
                     prompt = f"""You are a technical translator specializing in consumer electronics and materials science research. 
@@ -568,12 +438,11 @@ TRANSLATION REQUIREMENTS:
 3. Maintain company names (e.g., 京东方 → BOE, 华为 → Huawei) and researcher names
 4. Use formal technical English suitable for an executive briefing
 5. For breakthrough research, emphasize the significance and potential applications
-6. If specific metrics (efficiency, performance, etc.) are mentioned, ensure they're precisely translated
 
 Provide:
 - First line: Title (concise, professional)
 - Second line: [TECH AREA: {', '.join(tech_areas) if tech_areas else 'Technology'}]
-- Then a detailed summary paragraph (3-5 sentences) covering: what was achieved, how it works (simplified), and potential applications."""
+- Then a detailed summary paragraph (3-5 sentences)"""
                 else:
                     prompt = f"""You are a business translator specializing in consumer electronics industry news. 
 Translate this Chinese business/industry news to English accurately.
@@ -587,13 +456,11 @@ TRANSLATION REQUIREMENTS:
 - Preserve investment figures, production capacities, and timelines exactly
 - Maintain product names and specifications
 - Keep location names accurate (泰国→Thailand, 越南→Vietnam, etc.)
-- Use professional business English suitable for an executive briefing
 
 Provide:
 - First line: Title
 - Then a summary paragraph covering: what happened, who is involved, key numbers, and implications."""
                 
-                # 添加超时和重试逻辑
                 max_retries = 2
                 for attempt in range(max_retries):
                     try:
@@ -612,25 +479,20 @@ Provide:
                         time.sleep(2)
                 
                 translation = response.choices[0].message.content
-                
-                # 解析响应
                 lines = translation.split('\n', 2)
                 news['title_en'] = lines[0].strip() if lines else "Translation"
                 
-                # 如果存在技术领域行，提取它
                 if len(lines) > 1 and lines[1].startswith('[TECH AREA:'):
                     news['tech_area'] = lines[1].replace('[TECH AREA:', '').replace(']', '').strip()
                     news['summary_en'] = lines[2].strip() if len(lines) > 2 else translation
                 else:
                     news['summary_en'] = lines[1].strip() if len(lines) > 1 else translation
                 
-                # 标记技术内容以便特殊处理
                 if is_technical:
                     news['is_technical'] = True
                     news['is_breakthrough'] = is_breakthrough
                     news['tech_areas'] = tech_areas
                     
-                    # 带技术指标记录
                     tech_indicators = f"[{'突破' if is_breakthrough else '技术'}]"
                     areas = f"({', '.join(tech_areas[:2])})" if tech_areas else ""
                     self.log(f"  🔬 {tech_indicators} {areas}: {news['title'][:40]}...")
@@ -641,14 +503,12 @@ Provide:
                 
             except Exception as e:
                 self.log(f"  ⚠️ 翻译失败 '{news['title'][:30]}...': {e}", "WARNING")
-                # 仍然包含原文，带基本翻译
                 news['title_en'] = f"[翻译失败] {news['title']}"
                 news['summary_en'] = f"原文中文: {news['summary'][:200]}..."
                 news['is_technical'] = False
                 translated.append(news)
                 continue
         
-        # 统计摘要
         tech_count = sum(1 for n in translated if n.get('is_technical', False))
         breakthrough_count = sum(1 for n in translated if n.get('is_breakthrough', False))
         
@@ -659,209 +519,105 @@ Provide:
         return translated
     
     def analyze_trends(self, news_items):
-    """分析趋势并提取关键洞察，同时保存相关新闻"""
-    self.log("📊 分析消费电子趋势...")
-    
-    companies = []
-    locations = []
-    products = []
-    technologies = []
-    investments = []
-    
-    # 用于存储与每个热点相关的新闻
-    location_news = {}  # 键：地点，值：新闻列表
-    tech_news_map = {}  # 键：技术，值：新闻列表
-    company_news = {}   # 键：公司，值：新闻列表
-    
-    for item in news_items:
-        text = f"{item.get('title_en', item['title'])} {item.get('summary_en', item.get('summary', ''))}".lower()
+        """分析趋势并提取关键洞察，同时保存相关新闻"""
+        self.log("📊 分析消费电子趋势...")
         
-        # 提取公司
-        for company in ['samsung', 'haier', '海尔', 'midea', '美的', 'xiaomi', 'oppo', 
-                       'foxconn', '富士康', 'rokid', 'htc', 'lg', 'sony', 'boe', '京东方',
-                       'tcl', 'hisense', '海信', 'gree', '格力']:
-            if company.lower() in text:
-                company_clean = company.replace('海尔', 'Haier').replace('美的', 'Midea').replace('富士康', 'Foxconn').replace('京东方', 'BOE')
-                companies.append(company_clean)
-                
-                # 保存公司相关新闻
-                if company_clean not in company_news:
-                    company_news[company_clean] = []
-                if item not in company_news[company_clean]:
-                    company_news[company_clean].append(item)
+        companies = []
+        locations = []
+        products = []
+        technologies = []
+        investments = []
         
-        # 提取地点
-        for loc in SEA_LOCATIONS:
-            if loc.lower() in text:
-                loc_title = loc.title()
-                locations.append(loc_title)
-                
-                # 保存地点相关新闻
-                if loc_title not in location_news:
-                    location_news[loc_title] = []
-                if item not in location_news[loc_title]:
-                    location_news[loc_title].append(item)
+        # 用于存储与每个热点相关的新闻
+        location_news = {}
+        tech_news_map = {}
+        company_news = {}
         
-        # 提取产品
-        for prod in ['smartphone', 'glasses', 'wearable', 'refrigerator', 'fridge', 
-                    'air conditioner', 'tv', 'watch', '扫地机器人', 'vacuum',
-                    'washing machine', 'microwave', 'oven', 'capacitor', '电容器']:
-            if prod.lower() in text:
-                products.append(prod.title())
-        
-        # 提取新兴技术
-        tech_list = [
-            ('ai', 'AI'), ('人工智能', 'AI'),
-            ('ar', 'AR'), ('增强现实', 'AR'),
-            ('vr', 'VR'), ('虚拟现实', 'VR'),
-            ('thermoelectric', '热电材料'), ('热电', '热电材料'),
-            ('fiber chip', '纤维芯片'), ('纤维芯片', '纤维芯片'),
-            ('flexible', '柔性电子'), ('柔性', '柔性电子'),
-            ('microled', 'MicroLED'), ('oled', 'OLED'),
-            ('brain-computer', '脑机接口'), ('脑机', '脑机接口'),
-            ('powder', '粉体技术'), ('粉体', '粉体技术'),
-            ('flame retardant', '阻燃材料'), ('阻燃', '阻燃材料'),
-            ('nylon', '尼龙'), ('尼龙', '尼龙'),
-            ('film capacitor', '薄膜电容'), ('薄膜电容', '薄膜电容')
-        ]
-        
-        for tech_key, tech_display in tech_list:
-            if tech_key.lower() in text:
-                technologies.append(tech_display)
-                
-                # 保存技术相关新闻
-                if tech_display not in tech_news_map:
-                    tech_news_map[tech_display] = []
-                if item not in tech_news_map[tech_display]:
-                    tech_news_map[tech_display].append(item)
-        
-        # 提取投资
-        if 'invest' in text or '$' in text or 'billion' in text or 'million' in text:
-            investments.append('investment mentioned')
-    
-    return {
-        'top_companies': Counter(companies).most_common(10),
-        'top_locations': Counter(locations).most_common(5),
-        'top_products': Counter(products).most_common(5),
-        'top_technologies': Counter(technologies).most_common(5),
-        'total_investments': len(investments),
-        'location_news': location_news,      # 新增：地点相关新闻
-        'tech_news_map': tech_news_map,      # 新增：技术相关新闻
-        'company_news': company_news         # 新增：公司相关新闻
-    }
-
-    def _create_trends_section(self, trends):
-    """创建趋势部分，显示统计数据和具体新闻"""
-    html = '<div class="trends-section">'
-    
-    # 热门地点（制造热点）
-    html += '<div class="trends-grid">'
-    html += '<div class="trend-card" style="grid-column: span 3;">'
-    html += '<h3>📍 制造热点 - 东南亚建厂动态</h3>'
-    html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
-    
-    for location, count in trends['top_locations'][:5]:
-        location_key = location.title()
-        related_news = trends.get('location_news', {}).get(location_key, [])
-        
-        html += f"""
-        <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
-            <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #ffd700; padding-bottom: 5px;">
-                {location_key} <span style="color: #0066cc;">({count})</span>
-            </h4>
-            <ul style="list-style: none; padding: 0;">
-        """
-        
-        # 显示最多3条相关新闻
-        for news in related_news[:3]:
-            title = news.get('title_en', news['title'])[:50]
-            if len(title) >= 50:
-                title += '...'
-            html += f"""
-            <li style="margin-bottom: 8px; font-size: 0.9em;">
-                <a href="{news['link']}" style="color: #0066cc; text-decoration: none;">📄 {title}</a>
-                <span style="color: #666; font-size: 0.8em; display: block;">{news['source']}</span>
-            </li>
-            """
-        
-        if len(related_news) > 3:
-            html += f'<li style="color: #666; font-size: 0.85em;">... 还有 {len(related_news)-3} 条新闻</li>'
-        
-        html += '</ul></div>'
-    
-    html += '</div></div></div>'  # 结束制造热点部分
-    
-    # 新兴技术
-    html += '<div class="trends-grid" style="margin-top: 30px;">'
-    html += '<div class="trend-card" style="grid-column: span 3;">'
-    html += '<h3>🔬 新兴技术 - 最新技术动态</h3>'
-    html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
-    
-    for tech, count in trends['top_technologies'][:5]:
-        tech_key = tech
-        related_news = trends.get('tech_news_map', {}).get(tech_key, [])
-        
-        html += f"""
-        <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
-            <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #8b5cf6; padding-bottom: 5px;">
-                {tech_key} <span style="color: #0066cc;">({count})</span>
-            </h4>
-            <ul style="list-style: none; padding: 0;">
-        """
-        
-        # 显示最多3条相关新闻
-        for news in related_news[:3]:
-            title = news.get('title_en', news['title'])[:50]
-            if len(title) >= 50:
-                title += '...'
-            html += f"""
-            <li style="margin-bottom: 8px; font-size: 0.9em;">
-                <a href="{news['link']}" style="color: #8b5cf6; text-decoration: none;">🔬 {title}</a>
-                <span style="color: #666; font-size: 0.8em; display: block;">{news['source']}</span>
-            </li>
-            """
-        
-        if len(related_news) > 3:
-            html += f'<li style="color: #666; font-size: 0.85em;">... 还有 {len(related_news)-3} 条新闻</li>'
-        
-        html += '</ul></div>'
-    
-    html += '</div></div></div>'  # 结束新兴技术部分
-    
-    # 热门公司
-    if trends['top_companies']:
-        html += '<div class="trends-grid" style="margin-top: 30px;">'
-        html += '<div class="trend-card" style="grid-column: span 3;">'
-        html += '<h3>🏢 热门公司 - 最新动态</h3>'
-        html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
-        
-        for company, count in trends['top_companies'][:4]:
-            related_news = trends.get('company_news', {}).get(company, [])
+        for item in news_items:
+            title_for_analysis = item.get('title_en', item['title'])
+            summary_for_analysis = item.get('summary_en', item.get('summary', ''))
+            text = f"{title_for_analysis} {summary_for_analysis}".lower()
             
-            html += f"""
-            <div style="flex: 1; min-width: 200px; background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                <h4 style="color: #0a1929; margin-bottom: 10px; border-bottom: 2px solid #10b981; padding-bottom: 5px;">
-                    {company} <span style="color: #0066cc;">({count})</span>
-                </h4>
-                <ul style="list-style: none; padding: 0;">
-            """
+            # 提取公司
+            company_list = [
+                ('samsung', 'Samsung'), ('haier', 'Haier'), ('海尔', 'Haier'),
+                ('midea', 'Midea'), ('美的', 'Midea'), ('xiaomi', 'Xiaomi'),
+                ('oppo', 'OPPO'), ('foxconn', 'Foxconn'), ('富士康', 'Foxconn'),
+                ('rokid', 'Rokid'), ('htc', 'HTC'), ('lg', 'LG'),
+                ('sony', 'Sony'), ('boe', 'BOE'), ('京东方', 'BOE'),
+                ('tcl', 'TCL'), ('hisense', 'Hisense'), ('海信', 'Hisense'),
+                ('gree', 'Gree'), ('格力', 'Gree')
+            ]
             
-            for news in related_news[:2]:
-                title = news.get('title_en', news['title'])[:40]
-                if len(title) >= 40:
-                    title += '...'
-                html += f"""
-                <li style="margin-bottom: 8px; font-size: 0.9em;">
-                    <a href="{news['link']}" style="color: #10b981; text-decoration: none;">📊 {title}</a>
-                </li>
-                """
+            for company_key, company_display in company_list:
+                if company_key.lower() in text:
+                    companies.append(company_display)
+                    
+                    if company_display not in company_news:
+                        company_news[company_display] = []
+                    if item not in company_news[company_display]:
+                        company_news[company_display].append(item)
             
-            html += '</ul></div>'
+            # 提取地点
+            for loc in SEA_LOCATIONS:
+                if loc.lower() in text:
+                    loc_title = loc.title()
+                    locations.append(loc_title)
+                    
+                    if loc_title not in location_news:
+                        location_news[loc_title] = []
+                    if item not in location_news[loc_title]:
+                        location_news[loc_title].append(item)
+            
+            # 提取产品
+            product_list = ['smartphone', 'phone', 'glasses', 'wearable', 'watch',
+                           'refrigerator', 'fridge', 'air conditioner', 'tv',
+                           '扫地机器人', 'vacuum', 'washing machine', 'microwave',
+                           'oven', 'capacitor', '电容器']
+            
+            for prod in product_list:
+                if prod.lower() in text:
+                    products.append(prod.title())
+            
+            # 提取新兴技术
+            tech_list = [
+                ('ai', 'AI'), ('人工智能', 'AI'),
+                ('ar', 'AR'), ('增强现实', 'AR'),
+                ('vr', 'VR'), ('虚拟现实', 'VR'),
+                ('thermoelectric', '热电材料'), ('热电', '热电材料'),
+                ('fiber chip', '纤维芯片'), ('纤维芯片', '纤维芯片'),
+                ('flexible', '柔性电子'), ('柔性', '柔性电子'),
+                ('microled', 'MicroLED'), ('oled', 'OLED'),
+                ('brain-computer', '脑机接口'), ('脑机', '脑机接口'),
+                ('powder', '粉体技术'), ('粉体', '粉体技术'),
+                ('flame retardant', '阻燃材料'), ('阻燃', '阻燃材料'),
+                ('nylon', '尼龙'), ('尼龙', '尼龙'),
+                ('film capacitor', '薄膜电容'), ('薄膜电容', '薄膜电容')
+            ]
+            
+            for tech_key, tech_display in tech_list:
+                if tech_key.lower() in text:
+                    technologies.append(tech_display)
+                    
+                    if tech_display not in tech_news_map:
+                        tech_news_map[tech_display] = []
+                    if item not in tech_news_map[tech_display]:
+                        tech_news_map[tech_display].append(item)
+            
+            # 提取投资
+            if 'invest' in text or '$' in text or 'billion' in text or 'million' in text or '投资' in text:
+                investments.append('investment mentioned')
         
-        html += '</div></div></div>'
-    
-    html += '</div>'
-    return html
+        return {
+            'top_companies': Counter(companies).most_common(10),
+            'top_locations': Counter(locations).most_common(5),
+            'top_products': Counter(products).most_common(5),
+            'top_technologies': Counter(technologies).most_common(5),
+            'total_investments': len(investments),
+            'location_news': location_news,
+            'tech_news_map': tech_news_map,
+            'company_news': company_news
+        }
     
     def generate_executive_dashboard(self, news_items, trends):
         """生成专业HTML仪表板"""
@@ -878,7 +634,6 @@ Provide:
         for n in news_items:
             text = (n.get('title_en', n['title']) + ' ' + n.get('summary_en', n.get('summary', ''))).lower()
             
-            # 首先检查研究/突破
             if n.get('is_technical', False) or any(term in text for term in ['research', 'breakthrough', 'study', 'scientists', 'researchers']):
                 research_news.append(n)
             elif any(k in text for k in ['factory', 'plant', 'manufacturing', 'production', 'facility', 'assembly', '新建工厂', '投产']):
@@ -890,7 +645,6 @@ Provide:
         
         self.log(f"   分类: {len(research_news)} 研究, {len(factory_news)} 工厂, {len(tech_news)} 技术, {len(exhibition_news)} 展会")
         
-        # 创建各个部分
         research_section = self._create_research_section(research_news[:6])
         factory_section = self._create_factory_section(factory_news[:8])
         tech_section = self._create_tech_section(tech_news)
@@ -898,7 +652,6 @@ Provide:
         trends_section = self._create_trends_section(trends)
         exec_summary = self._generate_executive_summary(news_items, trends, factory_news, tech_news, research_news)
         
-        # 构建HTML（为简洁起见，保留现有的HTML模板，但更新标题以反映新材料覆盖）
         html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -906,7 +659,6 @@ Provide:
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SEA消费电子智能简报 - {date}</title>
     <style>
-        /* 保留之前的所有CSS样式 */
         * {{
             margin: 0;
             padding: 0;
@@ -1234,7 +986,7 @@ Provide:
         
         .trends-grid {{
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 25px;
             margin: 30px 0;
         }}
@@ -1254,6 +1006,8 @@ Provide:
         
         .trend-list {{
             list-style: none;
+            padding: 0;
+            margin: 0;
         }}
         
         .trend-item {{
@@ -1352,7 +1106,6 @@ Provide:
             </div>
         </div>
         
-        <!-- 研究与突破部分 -->
         <div class="section-header">
             <h2>🔬 研究突破与技术前沿</h2>
         </div>
@@ -1392,23 +1145,20 @@ Provide:
         return html
     
     def _create_research_section(self, research_news):
-        """创建研究突破部分，增强技术细节显示"""
+        """创建研究突破部分"""
         if not research_news:
             return '<p style="color:#666; text-align:center; padding:30px;">今日无研究突破。</p>'
         
-        # 区分突破性研究与普通研究
         breakthroughs = [n for n in research_news if n.get('is_breakthrough', False)]
         regular_research = [n for n in research_news if not n.get('is_breakthrough', False)]
         
         html = '<div class="manufacturing-grid">'
         
-        # 先展示突破性研究，使用特殊样式
         for item in breakthroughs:
             title_safe = html_module.escape(item.get('title_en', item['title'])[:80])
             summary_safe = html_module.escape(item.get('summary_en', item.get('summary', ''))[:250])
             tech_areas = item.get('tech_areas', [])
             
-            # 创建技术领域标签
             area_badges = ''.join([f'<span class="research-badge" style="background: #8b5cf6;">{area}</span>' for area in tech_areas[:3]])
             
             html += f"""
@@ -1433,18 +1183,15 @@ Provide:
             </div>
             """
         
-        # 展示普通研究
         for item in regular_research:
             title_safe = html_module.escape(item.get('title_en', item['title'])[:80])
             summary_safe = html_module.escape(item.get('summary_en', item.get('summary', ''))[:200])
-            tech_areas = item.get('tech_areas', [])
             
-            # 确定研究类型以显示图标
             research_type = "研究"
             icon = "🔬"
             color = "#8b5cf6"
             
-            if 'thermoelectric' in title_safe.lower() or any('热电' in area for area in tech_areas):
+            if 'thermoelectric' in title_safe.lower() or '热电' in title_safe.lower():
                 research_type = "热电材料"
                 icon = "⚡"
             elif 'fiber chip' in title_safe.lower() or '纤维' in title_safe.lower():
@@ -1503,7 +1250,6 @@ Provide:
             title_safe = html_module.escape(item.get('title_en', item['title'])[:80])
             summary_safe = html_module.escape(item.get('summary_en', item.get('summary', ''))[:200])
             
-            # 提取公司名称
             company = "制造企业"
             if 'haier' in title_safe.lower() or '海尔' in title_safe.lower():
                 company = "Haier"
@@ -1557,7 +1303,6 @@ Provide:
             title_safe = html_module.escape(item.get('title_en', item['title'])[:70])
             text = (title_safe + ' ' + item.get('summary', '')).lower()
             
-            # 增强应用检测
             app = "消费电子"
             if any(k in text for k in ['ai glass', 'smart glass', 'ar', 'vr', '眼镜']):
                 app = "AI/AR/VR 眼镜"
@@ -1582,7 +1327,6 @@ Provide:
             elif any(k in text for k in ['capacitor', '电容器']):
                 app = "电容器"
             
-            # 提取公司
             company = "多家"
             for c in ['Haier', '海尔', 'Midea', '美的', 'Hisense', '海信', 
                      'Rokid', 'COLMO', 'BOE', '京东方', 'Huawei', '华为',
@@ -1611,7 +1355,6 @@ Provide:
         for item in exhibition_news:
             title_safe = html_module.escape(item.get('title_en', item['title'])[:60])
             
-            # 提取日期
             date_match = re.search(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}', item.get('summary', ''))
             date = date_match.group() if date_match else "待定"
             
@@ -1629,26 +1372,127 @@ Provide:
         return html
     
     def _create_trends_section(self, trends):
-        """创建趋势部分"""
-        html = '<div class="trends-grid">'
+        """创建趋势部分，显示统计数据和具体新闻"""
+        html = '<div class="trends-section">'
+        
+        # 制造热点
+        if trends['top_locations']:
+            html += '<div class="trends-grid">'
+            html += '<div class="trend-card" style="grid-column: span 3;">'
+            html += '<h3 style="font-size: 1.8em; color: #0a1929; margin-bottom: 20px;">📍 制造热点 - 东南亚建厂动态</h3>'
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+            
+            for location, count in trends['top_locations'][:5]:
+                location_key = location.title() if isinstance(location, str) else location[0].title()
+                related_news = trends.get('location_news', {}).get(location_key, [])
+                
+                html += f"""
+                <div style="flex: 1; min-width: 250px; background: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="color: #0a1929; margin-bottom: 15px; border-bottom: 2px solid #ffd700; padding-bottom: 8px; font-size: 1.2em;">
+                        {location_key} <span style="color: #0066cc; font-size: 0.9em;">({count} 条新闻)</span>
+                    </h4>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                """
+                
+                if related_news:
+                    for news in related_news[:3]:
+                        title = news.get('title_en', news['title'])[:60]
+                        if len(title) >= 60:
+                            title += '...'
+                        source = news['source'].replace('www.', '').replace('.com', '').replace('.cn', '')[:15]
+                        html += f"""
+                        <li style="margin-bottom: 12px; font-size: 0.95em; border-left: 3px solid #ffd700; padding-left: 10px;">
+                            <a href="{news['link']}" style="color: #0066cc; text-decoration: none; font-weight: 500;" target="_blank">📄 {title}</a>
+                            <span style="color: #666; font-size: 0.8em; display: block; margin-top: 3px;">{source} · {news.get('published', '')[:10]}</span>
+                        </li>
+                        """
+                    
+                    if len(related_news) > 3:
+                        html += f'<li style="color: #666; font-size: 0.85em; text-align: center; margin-top: 10px;">... 还有 {len(related_news)-3} 条相关新闻</li>'
+                else:
+                    html += '<li style="color: #999; font-style: italic; text-align: center;">暂无具体新闻</li>'
+                
+                html += '</ul></div>'
+            
+            html += '</div></div></div>'
+        
+        # 新兴技术
+        if trends['top_technologies']:
+            html += '<div class="trends-grid" style="margin-top: 40px;">'
+            html += '<div class="trend-card" style="grid-column: span 3;">'
+            html += '<h3 style="font-size: 1.8em; color: #0a1929; margin-bottom: 20px;">🔬 新兴技术 - 最新技术动态</h3>'
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+            
+            for tech, count in trends['top_technologies'][:5]:
+                tech_key = tech[0] if isinstance(tech, tuple) else tech
+                related_news = trends.get('tech_news_map', {}).get(tech_key, [])
+                
+                html += f"""
+                <div style="flex: 1; min-width: 250px; background: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="color: #0a1929; margin-bottom: 15px; border-bottom: 2px solid #8b5cf6; padding-bottom: 8px; font-size: 1.2em;">
+                        {tech_key} <span style="color: #8b5cf6; font-size: 0.9em;">({count} 条新闻)</span>
+                    </h4>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                """
+                
+                if related_news:
+                    for news in related_news[:3]:
+                        title = news.get('title_en', news['title'])[:60]
+                        if len(title) >= 60:
+                            title += '...'
+                        source = news['source'].replace('www.', '').replace('.com', '').replace('.cn', '')[:15]
+                        html += f"""
+                        <li style="margin-bottom: 12px; font-size: 0.95em; border-left: 3px solid #8b5cf6; padding-left: 10px;">
+                            <a href="{news['link']}" style="color: #8b5cf6; text-decoration: none; font-weight: 500;" target="_blank">🔬 {title}</a>
+                            <span style="color: #666; font-size: 0.8em; display: block; margin-top: 3px;">{source} · {news.get('published', '')[:10]}</span>
+                        </li>
+                        """
+                    
+                    if len(related_news) > 3:
+                        html += f'<li style="color: #666; font-size: 0.85em; text-align: center; margin-top: 10px;">... 还有 {len(related_news)-3} 条相关新闻</li>'
+                else:
+                    html += '<li style="color: #999; font-style: italic; text-align: center;">暂无具体新闻</li>'
+                
+                html += '</ul></div>'
+            
+            html += '</div></div></div>'
         
         # 热门公司
-        html += '<div class="trend-card"><h3>🏢 热门公司</h3><ul class="trend-list">'
-        for company, count in trends['top_companies'][:5]:
-            html += f'<li class="trend-item"><span class="trend-rank">•</span>{company} ({count})</li>'
-        html += '</ul></div>'
-        
-        # 热门地点
-        html += '<div class="trend-card"><h3>📍 制造热点</h3><ul class="trend-list">'
-        for loc, count in trends['top_locations'][:5]:
-            html += f'<li class="trend-item"><span class="trend-rank">•</span>{loc.title()} ({count})</li>'
-        html += '</ul></div>'
-        
-        # 热门技术
-        html += '<div class="trend-card"><h3>🔬 新兴技术</h3><ul class="trend-list">'
-        for tech, count in trends['top_technologies'][:5]:
-            html += f'<li class="trend-item"><span class="trend-rank">•</span>{tech} ({count})</li>'
-        html += '</ul></div>'
+        if trends['top_companies']:
+            html += '<div class="trends-grid" style="margin-top: 40px;">'
+            html += '<div class="trend-card" style="grid-column: span 3;">'
+            html += '<h3 style="font-size: 1.8em; color: #0a1929; margin-bottom: 20px;">🏢 热门公司 - 最新动态</h3>'
+            html += '<div style="display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px;">'
+            
+            for company, count in trends['top_companies'][:4]:
+                company_key = company[0] if isinstance(company, tuple) else company
+                related_news = trends.get('company_news', {}).get(company_key, [])
+                
+                html += f"""
+                <div style="flex: 1; min-width: 280px; background: #f8f9fa; padding: 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <h4 style="color: #0a1929; margin-bottom: 15px; border-bottom: 2px solid #10b981; padding-bottom: 8px; font-size: 1.2em;">
+                        {company_key} <span style="color: #10b981; font-size: 0.9em;">({count} 条新闻)</span>
+                    </h4>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                """
+                
+                if related_news:
+                    for news in related_news[:2]:
+                        title = news.get('title_en', news['title'])[:50]
+                        if len(title) >= 50:
+                            title += '...'
+                        html += f"""
+                        <li style="margin-bottom: 10px; font-size: 0.95em;">
+                            <a href="{news['link']}" style="color: #10b981; text-decoration: none;" target="_blank">📊 {title}</a>
+                            <span style="color: #666; font-size: 0.8em; display: block;">{news['source']}</span>
+                        </li>
+                        """
+                else:
+                    html += '<li style="color: #999; font-style: italic;">暂无具体新闻</li>'
+                
+                html += '</ul></div>'
+            
+            html += '</div></div></div>'
         
         html += '</div>'
         return html
@@ -1706,14 +1550,12 @@ Make it professional, data-driven, and impactful for a company director. Focus o
             
             self.log(f"   收件人: {recipients}")
             
-            # 创建邮件
             msg = MIMEMultipart('alternative')
             msg['Subject'] = subject
             msg['From'] = EMAIL_CONFIG["sender_email"]
             msg['To'] = ', '.join(recipients)
             msg.attach(MIMEText(html_content, 'html', 'utf-8'))
             
-            # 尝试使用SSL（端口465）
             try:
                 server = smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=30)
                 server.ehlo()
@@ -1725,7 +1567,6 @@ Make it professional, data-driven, and impactful for a company director. Focus o
             except Exception as e:
                 self.log(f"⚠️ SSL失败: {e}, 尝试TLS...", "WARNING")
                 
-                # 尝试TLS（端口587）
                 server = smtplib.SMTP("smtp.gmail.com", 587, timeout=30)
                 server.starttls()
                 server.ehlo()
@@ -1748,23 +1589,18 @@ Make it professional, data-driven, and impactful for a company director. Focus o
         
         start_time = time.time()
         
-        # 步骤1：获取新闻
         news_items = self.fetch_all_news()
         if not news_items:
             self.log("❌ 未找到相关新闻", "ERROR")
             return
         
-        # 步骤2：翻译中文新闻
         translated = self.translate_chinese_news()
         all_news = news_items + translated
         
-        # 步骤3：分析趋势
         trends = self.analyze_trends(all_news)
         
-        # 步骤4：生成仪表板
         html_content = self.generate_executive_dashboard(all_news, trends)
         
-        # 步骤5：发送邮件
         subject = f"📱 东南亚消费电子简报 - {datetime.now().strftime('%Y-%m-%d')}"
         self.send_email(subject, html_content)
         
