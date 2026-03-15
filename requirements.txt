@@ -1,12 +1,26 @@
+# Core ML dependencies with compatible versions
 numpy==1.24.3
+torch==2.0.1
+sentence-transformers==2.2.2
+huggingface-hub==0.16.4  # Critical: older version that works with sentence-transformers
+transformers==4.30.2
+
+# API and web
 openai==1.12.0
 requests==2.31.0
 feedparser==6.0.10
 beautifulsoup4==4.12.2
-chromadb==0.4.22
-sentence-transformers==2.2.2
-python-dotenv==1.0.0
+
+# Database - using older stable chromadb
+chromadb==0.4.18
+pandas==1.5.3
+
+# Email and PDF
 jinja2==3.1.2
 weasyprint==60.0
 yagmail==0.15.293
-pandas==1.5.3  # Also pin pandas to compatible version
+
+# Utilities
+python-dotenv==1.0.0
+tqdm==4.65.0
+filelock==3.12.2
