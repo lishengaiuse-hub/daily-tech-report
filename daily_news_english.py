@@ -908,4 +908,93 @@ Key stats:
 Make it professional and impactful for a company director."""
             
             response = openai.ChatCompletion.create(
-               
+                model="deepseek-chat",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=200,
+                timeout=10
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            self.log(f"⚠️ Summary generation failed: {e}", "WARNING")
+            return f"Today's intelligence covers {len(news_items)} articles with significant activity in {trends['top_locations'][0][0] if trends['top_locations'] else 'the region'}. Key developments include manufacturing expansions and technology innovations."
+    
+    def parse_recipients(self, recipients_string):
+        """Parse email recipients"""
+        if not recipients_string:
+            return []
+        
+        cleaned = recipients_string.replace('*', '').replace('\n', ',').replace('\r', ',').replace(';', ',')
+        recipients = [email.strip() for email in cleaned.split(',') if email.strip() and '@' in email]
+        return recipients
+    
+    def send_email(self, subject, html_content):
+        """Send email with professional dashboard"""
+        self.log("\n📧 Sending executive briefing...")
+        
+        try:
+            recipients = self.parse_recipients(EMAIL_CONFIG["receiver_email"])
+            if not recipients:
+                self.log("❌ No valid recipients", "ERROR")
+                return False
+            
+            self.log(f"   To: {recipients}")
+            
+            yag = yagmail.SMTP(
+                user=EMAIL_CONFIG["sender_email"],
+                password=EMAIL_CONFIG["sender_password"],
+                host=EMAIL_CONFIG["smtp_host"],
+                port=EMAIL_CONFIG["smtp_port"]
+            )
+            
+            yag.send(
+                to=recipients,
+                subject=subject,
+                contents=html_content
+            )
+            
+            self.log("✅ Executive briefing sent!")
+            return True
+            
+        except Exception as e:
+            self.log(f"❌ Email failed: {e}", "ERROR")
+            return False
+    
+    def run(self):
+        """Main execution flow"""
+        self.log("\n" + "="*70)
+        self.log("🚀 SOUTHEAST ASIA TECH INTELLIGENCE DASHBOARD")
+        self.log("="*70)
+        
+        start_time = time.time()
+        
+        # Step 1: Fetch news
+        news_items = self.fetch_all_news()
+        if not news_items:
+            self.log("❌ No news fetched", "ERROR")
+            return
+        
+        # Step 2: Translate Chinese news
+        translated = self.translate_chinese_news()
+        
+        # Step 3: Analyze trends
+        trends = self.analyze_trends(news_items + translated)
+        
+        # Step 4: Generate dashboard
+        html_content = self.generate_executive_dashboard(news_items + translated, trends)
+        
+        # Step 5: Send email
+        subject = f"📊 SEA Tech Intelligence Dashboard - {datetime.now().strftime('%Y-%m-%d')}"
+        self.send_email(subject, html_content)
+        
+        elapsed = time.time() - start_time
+        self.log("\n" + "="*70)
+        self.log(f"✅ DASHBOARD COMPLETE in {elapsed:.1f} seconds")
+        self.log("="*70)
+
+# ==================== MAIN ====================
+if __name__ == "__main__":
+    dashboard = TechIntelligenceDashboard()
+    dashboard.run()
