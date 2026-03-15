@@ -1,12 +1,5 @@
-# Core ML with stable versions
-numpy==1.24.3
-sentence-transformers==2.2.2
-huggingface-hub==0.16.4
-transformers==4.30.2
-torch==2.0.1
-
-# API - Use older stable OpenAI version
-openai==0.28.1  # This older version is more stable
+# API - Keep OpenAI
+openai==0.28.1
 requests==2.31.0
 feedparser==6.0.10
 beautifulsoup4==4.12.2
@@ -18,5 +11,3 @@ yagmail==0.15.293
 
 # Utilities
 python-dotenv==1.0.0
-tqdm==4.65.0
-filelock==3.12.2
