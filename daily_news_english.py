@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Daily Tech & Manufacturing Intelligence Report - English Version
-Delivers detailed English analysis of SEA manufacturing, new technologies, and exhibitions
+Daily Tech Intelligence Report - Simplified Version
+Removes ChromaDB dependency for better stability
 """
 
 import os
@@ -12,8 +12,6 @@ import feedparser
 import requests
 from datetime import datetime, timedelta
 import openai
-import chromadb
-from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 from jinja2 import Environment, FileSystemLoader
 import yagmail
@@ -55,7 +53,6 @@ RSS_FEEDS = [
     
     # Exhibition News
     {"url": "https://www.awe.com.cn/rss/news.xml", "category": "exhibition", "region": "china"},
-    {"url": "https://www.ces.tech/rss.xml", "category": "exhibition", "region": "global"},
 ]
 
 # Enhanced Keywords for better filtering
@@ -94,19 +91,8 @@ client = openai.OpenAI(
     base_url="https://api.deepseek.com"
 )
 
-# Vector database for deduplication
-chroma_client = chromadb.Client(Settings(
-    chroma_db_impl="duckdb+parquet",
-    persist_directory="./chroma_db"
-))
-
-try:
-    collection = chroma_client.get_collection(name="news_embeddings")
-except:
-    collection = chroma_client.create_collection(name="news_embeddings")
-
-# Multilingual embedding model
-model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+# Simple in-memory cache for deduplication (last 100 articles)
+news_cache = set()
 
 # Jinja2 template engine
 template_env = Environment(loader=FileSystemLoader('templates'))
@@ -149,6 +135,15 @@ def fetch_detailed_news():
                 
                 # Generate unique ID
                 news_id = hashlib.md5(f"{title}{link}".encode()).hexdigest()
+                
+                # Skip if already in cache (simple deduplication)
+                if news_id in news_cache:
+                    continue
+                
+                # Add to cache (limit size)
+                news_cache.add(news_id)
+                if len(news_cache) > 1000:
+                    news_cache.clear()  # Simple reset if too large
                 
                 # Extract potential company names, investment figures, locations
                 company_matches = re.findall(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:Corp|Inc|Ltd|Company|集团|公司)', full_text)
@@ -394,43 +389,6 @@ def render_english_report(report_data):
     
     return template.render(**template_data)
 
-def check_duplicate(news_item):
-    """Check for duplicates using vector similarity"""
-    try:
-        text_to_embed = f"{news_item['title']} {news_item['summary'][:300]}"
-        embedding = model.encode(text_to_embed).tolist()
-        
-        results = collection.query(
-            query_embeddings=[embedding],
-            n_results=1
-        )
-        
-        if not results['ids'][0]:
-            return False
-        
-        similarity = 1 - results['distances'][0][0] if results['distances'][0] else 0
-        return similarity > 0.85
-        
-    except Exception as e:
-        print(f"Deduplication error: {e}")
-        return False
-
-def save_news_to_db(news_items):
-    """Save news to vector database"""
-    for item in news_items:
-        try:
-            text_to_embed = f"{item['title']} {item['summary'][:300]}"
-            embedding = model.encode(text_to_embed).tolist()
-            
-            collection.add(
-                embeddings=[embedding],
-                documents=[json.dumps(item, ensure_ascii=False)],
-                metadatas=[{"date": datetime.now().strftime('%Y-%m-%d')}],
-                ids=[item['id']]
-            )
-        except Exception as e:
-            print(f"Failed to save {item['id']}: {e}")
-
 def generate_pdf(html_content):
     """Generate PDF from HTML"""
     try:
@@ -444,8 +402,22 @@ def generate_pdf(html_content):
         print(f"PDF generation failed: {e}")
         return None
 
+def parse_recipients(recipients_string):
+    """Parse multiple email addresses from string"""
+    # Replace common delimiters with comma
+    for delimiter in [';', '\n', '\r', '|']:
+        recipients_string = recipients_string.replace(delimiter, ',')
+    
+    # Split and clean
+    emails = [email.strip() for email in recipients_string.split(',') if email.strip()]
+    
+    # Filter valid emails (basic check)
+    valid = [e for e in emails if '@' in e and '.' in e]
+    
+    return valid
+
 def send_email(subject, html_content, pdf_path=None):
-    """Send email with report"""
+    """Send email with report to multiple recipients"""
     try:
         yag = yagmail.SMTP(
             user=EMAIL_CONFIG["sender_email"],
@@ -454,16 +426,25 @@ def send_email(subject, html_content, pdf_path=None):
             port=EMAIL_CONFIG["smtp_port"]
         )
         
+        # Parse multiple recipients
+        recipients = parse_recipients(EMAIL_CONFIG["receiver_email"])
+        
+        if not recipients:
+            print("❌ No valid email recipients found")
+            return False
+        
         attachments = [pdf_path] if pdf_path else []
         
         yag.send(
-            to=EMAIL_CONFIG["receiver_email"],
+            to=recipients,
             subject=subject,
             contents=html_content,
             attachments=attachments
         )
         
-        print(f"Email sent successfully to {EMAIL_CONFIG['receiver_email']}")
+        print(f"✅ Email sent successfully to {len(recipients)} recipients:")
+        for i, email in enumerate(recipients, 1):
+            print(f"   {i}. {email}")
         
         if pdf_path and os.path.exists(pdf_path):
             os.unlink(pdf_path)
@@ -471,7 +452,7 @@ def send_email(subject, html_content, pdf_path=None):
         return True
         
     except Exception as e:
-        print(f"Email failed: {e}")
+        print(f"❌ Email failed: {e}")
         return False
 
 # ==================== MAIN FUNCTION ====================
@@ -483,28 +464,21 @@ def main():
     print(f"{'='*60}\n")
     
     # Step 1: Fetch news
-    print("📡 Step 1/5: Fetching news from 15+ sources...")
+    print("📡 Step 1/4: Fetching news from 15+ sources...")
     all_news = fetch_detailed_news()
     
-    # Step 2: Deduplicate
-    print(f"\n🔍 Step 2/5: Deduplicating {len(all_news)} articles...")
-    unique_news = []
-    for news in all_news:
-        if not check_duplicate(news):
-            unique_news.append(news)
+    print(f"   → {len(all_news)} articles collected")
     
-    print(f"   → {len(unique_news)} new, unique articles retained")
-    
-    if not unique_news:
-        print("⚠️ No new articles today. Skipping report generation.")
+    if not all_news:
+        print("⚠️ No articles today. Skipping report generation.")
         return
     
-    # Step 3: Generate AI report
-    print(f"\n🤖 Step 3/5: Generating detailed English analysis with DeepSeek...")
-    print(f"   Processing {len(unique_news)} articles (this takes ~30 seconds)")
+    # Step 2: Generate AI report
+    print(f"\n🤖 Step 2/4: Generating detailed English analysis with DeepSeek...")
+    print(f"   Processing {len(all_news)} articles (this takes ~30 seconds)")
     
-    report_data = generate_detailed_english_report(unique_news)
-    report_data["news_count"] = len(unique_news)
+    report_data = generate_detailed_english_report(all_news)
+    report_data["news_count"] = len(all_news)
     
     print(f"   ✓ Report generated successfully")
     print(f"   ├─ Factory news: {report_data['stats']['factory_count']}")
@@ -512,21 +486,19 @@ def main():
     print(f"   ├─ Suppliers: {report_data['stats']['supplier_count']}")
     print(f"   └─ Exhibitions: {report_data['stats']['expo_count']}")
     
-    # Step 4: Render HTML
-    print(f"\n🎨 Step 4/5: Rendering professional HTML report...")
+    # Step 3: Render HTML
+    print(f"\n🎨 Step 3/4: Rendering professional HTML report...")
     html_report = render_english_report(report_data)
     print(f"   ✓ HTML generated ({len(html_report):,} characters)")
     
-    # Step 5: Generate PDF
-    print(f"\n📄 Step 5/5: Generating PDF attachment...")
+    # Step 4: Generate PDF and send email
+    print(f"\n📄 Step 4/4: Generating PDF and sending email...")
     pdf_path = generate_pdf(html_report)
     if pdf_path:
         print(f"   ✓ PDF generated")
     else:
         print(f"   ⚠️ PDF generation skipped")
     
-    # Step 6: Send email
-    print(f"\n📧 Sending email report...")
     subject = f"📊 Southeast Asia Tech Report {datetime.now().strftime('%Y-%m-%d')} - Factory Expansions & New Technologies"
     
     if send_email(subject, html_report, pdf_path):
@@ -534,12 +506,8 @@ def main():
     else:
         print(f"   ❌ Email failed")
     
-    # Step 7: Save to database
-    print(f"\n💾 Saving to vector database for tomorrow's deduplication...")
-    save_news_to_db(unique_news)
-    
     print(f"\n{'='*60}")
-    print(f"✅ Report complete! Check your inbox at 9:00 AM.")
+    print(f"✅ Report complete! Check your inbox.")
     print(f"   Total cost: ~$0.002 (0.2 cents)")
     print(f"{'='*60}\n")
 
