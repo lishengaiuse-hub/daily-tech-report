@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Daily Tech Intelligence Report - Complete Fixed Version
-With proper error handling and JSON parsing
+Southeast Asia Tech Intelligence Dashboard - Director's Edition
+Professional executive-level daily briefing with detailed analytics
 """
 
 import os
@@ -11,7 +11,7 @@ import json
 import hashlib
 import feedparser
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import openai
 import yagmail
 import tempfile
@@ -19,27 +19,15 @@ import re
 import time
 import traceback
 import smtplib
-import socket
-
-# ==================== LOGGING SETUP ====================
-def log(msg, level="INFO"):
-    """Simple logging with timestamp"""
-    timestamp = datetime.now().strftime('%H:%M:%S')
-    print(f"[{timestamp}] {level}: {msg}")
-    sys.stdout.flush()
-
-log("=" * 60)
-log("DAILY TECH REPORT - FIXED VERSION")
-log(f"Python version: {sys.version}")
-log("=" * 60)
+from collections import Counter
+from typing import List, Dict, Any
+import html
 
 # ==================== CONFIGURATION ====================
-log("Loading environment variables...")
-
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-log(f"DEEPSEEK_API_KEY set: {'Yes' if DEEPSEEK_API_KEY else 'No'}")
+openai.api_key = DEEPSEEK_API_KEY
+openai.api_base = "https://api.deepseek.com/v1"
 
-# Email Configuration
 EMAIL_CONFIG = {
     "smtp_host": os.getenv("SMTP_HOST", "smtp.gmail.com"),
     "smtp_port": int(os.getenv("SMTP_PORT", 587)),
@@ -48,566 +36,876 @@ EMAIL_CONFIG = {
     "receiver_email": os.getenv("RECEIVER_EMAIL")
 }
 
-log(f"SMTP_HOST: {EMAIL_CONFIG['smtp_host']}")
-log(f"SMTP_PORT: {EMAIL_CONFIG['smtp_port']}")
-log(f"SENDER_EMAIL: {EMAIL_CONFIG['sender_email']}")
-log(f"SENDER_PASSWORD set: {'Yes' if EMAIL_CONFIG['sender_password'] else 'No'}")
-log(f"RECEIVER_EMAIL raw: {EMAIL_CONFIG['receiver_email']}")
-
-# Configure OpenAI for DeepSeek
-if DEEPSEEK_API_KEY:
-    openai.api_key = DEEPSEEK_API_KEY
-    openai.api_base = "https://api.deepseek.com/v1"
-    log("OpenAI configured for DeepSeek")
-else:
-    log("❌ No DeepSeek API key found!", "ERROR")
-
-# RSS FEEDS
+# ==================== ENHANCED RSS FEEDS ====================
 RSS_FEEDS = [
-    {"url": "https://technews.tw/feed/", "category": "tech"},
-    {"url": "https://www.ledinside.cn/rss.xml", "category": "semiconductor"},
-    {"url": "https://www.moneydj.com/KMDJ/NewsCenter/RSS.aspx?c=MB020000", "category": "finance"},
-    {"url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "business"},
-    {"url": "https://www.thestar.com.my/rss/business", "category": "business"},
+    # Taiwan Tech (English-friendly)
+    {"url": "https://technews.tw/feed/", "category": "tech", "region": "taiwan", "lang": "zh"},
+    {"url": "https://www.digitimes.com.tw/rss/rptlist.asp", "category": "semiconductor", "region": "taiwan", "lang": "zh"},
+    
+    # English Tech News
+    {"url": "https://feeds.bloomberg.com/markets/news.rss", "category": "finance", "region": "global", "lang": "en"},
+    {"url": "https://www.reuters.com/agency/feed/?-t=2", "category": "business", "region": "global", "lang": "en"},
+    {"url": "https://techcrunch.com/feed/", "category": "tech", "region": "global", "lang": "en"},
+    {"url": "https://www.theverge.com/rss/index.xml", "category": "tech", "region": "global", "lang": "en"},
+    {"url": "https://arstechnica.com/feed/", "category": "tech", "region": "global", "lang": "en"},
+    
+    # Southeast Asia English News
+    {"url": "https://www.bangkokpost.com/rss/data/business.xml", "category": "business", "region": "thailand", "lang": "en"},
+    {"url": "https://www.thestar.com.my/rss/business", "category": "business", "region": "malaysia", "lang": "en"},
+    {"url": "https://www.straitstimes.com/news/business/rss.xml", "category": "business", "region": "singapore", "lang": "en"},
+    {"url": "https://www.nst.com.my/rss/business", "category": "business", "region": "malaysia", "lang": "en"},
+    {"url": "https://www.philstar.com/rss/business", "category": "business", "region": "philippines", "lang": "en"},
+    
+    # Industry Publications
+    {"url": "https://semiengineering.com/feed/", "category": "semiconductor", "region": "global", "lang": "en"},
+    {"url": "https://www.electronicproducts.com/feed/", "category": "components", "region": "global", "lang": "en"},
+    {"url": "https://www.ledinside.com/news/feed", "category": "display", "region": "global", "lang": "en"},
+    {"url": "https://www.displaydaily.com/feed", "category": "display", "region": "global", "lang": "en"},
 ]
-log(f"RSS feeds configured: {len(RSS_FEEDS)}")
 
-# Keywords
-KEYWORDS = [
-    "factory", "plant", "manufacturing", "production", "Thailand", "Vietnam", 
-    "Indonesia", "Malaysia", "Singapore", "Southeast Asia", "investment", "expansion",
-    "AR", "VR", "AI", "smart glasses", "AR glasses", "VR headset", "AI glasses",
-    "wearable", "display", "MicroLED", "OLED", "sensor", "chip", "battery",
-    "supplier", "vendor", "manufacturer", "OEM", "Foxconn", "Pegatron", "Goertek", "BOE",
-    "exhibition", "trade show", "expo", "AWE", "CES", "MWC", "IFA"
-]
-log(f"Keywords loaded: {len(KEYWORDS)}")
+# ==================== EXECUTIVE SUMMARY TEMPLATE ====================
+EXECUTIVE_TEMPLATE = """
+Dear Director,
 
-# ==================== HELPER FUNCTIONS ====================
+Here is today's Southeast Asia technology and manufacturing intelligence briefing.
 
-def parse_recipients(recipients_string):
-    """
-    Parse email recipients from string, handling various formats
-    Removes asterisks, line breaks, and splits by common delimiters
-    """
-    if not recipients_string:
-        return []
-    
-    log(f"Parsing recipients from: '{recipients_string}'")
-    
-    # Remove asterisks (common in GitHub Secrets display)
-    cleaned = recipients_string.replace('*', '')
-    
-    # Replace various delimiters with commas
-    for delimiter in ['\n', '\r', ';', '|', ' ']:
-        cleaned = cleaned.replace(delimiter, ',')
-    
-    log(f"After delimiter replacement: '{cleaned}'")
-    
-    # Split by comma and clean each part
-    raw_emails = [email.strip() for email in cleaned.split(',') if email.strip()]
-    log(f"Raw split emails: {raw_emails}")
-    
-    # Validate email format (basic check)
-    valid_emails = []
-    for email in raw_emails:
-        # Remove any remaining invalid characters
-        email = re.sub(r'[^\w\.@\-_]', '', email)
-        if '@' in email and '.' in email.split('@')[-1]:
-            valid_emails.append(email)
-        else:
-            log(f"Skipping invalid email: {email}", "WARNING")
-    
-    log(f"Valid recipients: {valid_emails}")
-    return valid_emails
+🔍 **KEY HIGHLIGHTS:**
+{highlights}
 
-def test_smtp_connection():
-    """Test SMTP connection without sending email"""
-    log("Testing SMTP connection...")
-    try:
-        server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=10)
-        server.starttls()
-        server.ehlo()
-        log(f"✅ SMTP connection successful to {EMAIL_CONFIG['smtp_host']}")
-        server.quit()
-        return True
-    except Exception as e:
-        log(f"❌ SMTP connection failed: {e}", "ERROR")
-        return False
+🏭 **MANUFACTURING & INVESTMENT**
+{factory_summary}
 
-def test_smtp_login():
-    """Test SMTP login"""
-    log("Testing SMTP login...")
-    try:
-        server = smtplib.SMTP(EMAIL_CONFIG["smtp_host"], EMAIL_CONFIG["smtp_port"], timeout=10)
-        server.starttls()
-        server.ehlo()
-        server.login(EMAIL_CONFIG["sender_email"], EMAIL_CONFIG["sender_password"])
-        log(f"✅ SMTP login successful for {EMAIL_CONFIG['sender_email']}")
-        server.quit()
-        return True
-    except Exception as e:
-        log(f"❌ SMTP login failed: {e}", "ERROR")
-        return False
+💡 **TECHNOLOGY & INNOVATION**
+{tech_summary}
 
-# ==================== CORE FUNCTIONS ====================
+📅 **UPCOMING EVENTS**
+{events_summary}
 
-def fetch_news():
-    """Fetch news from RSS feeds"""
-    log("Starting news fetch...")
-    news_items = []
-    feedparser.USER_AGENT = "Mozilla/5.0 (compatible; RSS Reader; +https://github.com/)"
+*Report generated at {timestamp}*
+"""
+
+# ==================== MAIN SCRIPT ====================
+class TechIntelligenceDashboard:
+    def __init__(self):
+        self.news_items = []
+        self.english_news = []
+        self.chinese_news = []
+        self.report_data = {}
+        
+    def log(self, msg, level="INFO"):
+        """Enhanced logging"""
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        print(f"[{timestamp}] {level}: {msg}")
+        sys.stdout.flush()
     
-    for feed in RSS_FEEDS:
-        try:
-            log(f"Fetching: {feed['url']}")
-            parsed = feedparser.parse(feed['url'])
-            log(f"  Got {len(parsed.entries)} entries")
+    def fetch_all_news(self):
+        """Fetch news from all RSS feeds"""
+        self.log("📡 Fetching news from 15+ sources...")
+        feedparser.USER_AGENT = "Mozilla/5.0 (compatible; Executive Dashboard)"
+        
+        for feed in RSS_FEEDS:
+            try:
+                self.log(f"  Fetching: {feed['url']}")
+                parsed = feedparser.parse(feed['url'])
+                
+                for entry in parsed.entries[:15]:  # Get more items for better coverage
+                    title = entry.get('title', 'No title')
+                    summary = entry.get('summary', '') or entry.get('description', '')
+                    link = entry.get('link', '')
+                    
+                    # Extract full content if available
+                    content = entry.get('content', [{'value': ''}])[0].get('value', '')[:1000]
+                    
+                    # Get publication date
+                    published = entry.get('published', '')
+                    if not published:
+                        published = entry.get('updated', datetime.now().strftime('%Y-%m-%d'))
+                    
+                    # Extract source
+                    source = feed['url'].split('/')[2] if '//' in feed['url'] else feed['url']
+                    
+                    news_item = {
+                        'title': title,
+                        'summary': summary[:800],
+                        'content': content,
+                        'link': link,
+                        'source': source,
+                        'published': published,
+                        'category': feed['category'],
+                        'region': feed['region'],
+                        'lang': feed['lang']
+                    }
+                    
+                    self.news_items.append(news_item)
+                    
+                    # Separate by language
+                    if feed['lang'] == 'en':
+                        self.english_news.append(news_item)
+                    else:
+                        self.chinese_news.append(news_item)
+                        
+            except Exception as e:
+                self.log(f"  ⚠️ Error: {feed['url']} - {e}", "WARNING")
+                continue
+        
+        self.log(f"✅ Total articles: {len(self.news_items)}")
+        self.log(f"   English: {len(self.english_news)} | Chinese: {len(self.chinese_news)}")
+        return self.news_items
+    
+    def translate_chinese_news(self):
+        """Translate Chinese news to English using DeepSeek"""
+        if not self.chinese_news:
+            return []
+        
+        self.log("🔄 Translating Chinese news to English...")
+        translated = []
+        
+        for news in self.chinese_news[:10]:  # Translate top 10 Chinese articles
+            try:
+                prompt = f"""Translate this Chinese news to English. Keep all technical terms and company names accurate.
+
+Original: {news['title']} - {news['summary'][:300]}
+
+Provide ONLY the translation, no explanations."""
+                
+                response = openai.ChatCompletion.create(
+                    model="deepseek-chat",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.1,
+                    max_tokens=500,
+                    timeout=15
+                )
+                
+                translation = response.choices[0].message.content
+                news['title_en'] = translation.split('\n')[0]
+                news['summary_en'] = translation
+                translated.append(news)
+                self.log(f"  ✅ Translated: {news['title'][:50]}...")
+                
+            except Exception as e:
+                self.log(f"  ⚠️ Translation failed: {e}", "WARNING")
+                continue
+        
+        self.log(f"✅ Translated {len(translated)} articles")
+        return translated
+    
+    def analyze_trends(self, news_items):
+        """Analyze trends and extract key insights"""
+        self.log("📊 Analyzing trends...")
+        
+        # Extract companies mentioned
+        company_pattern = r'([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+)?)(?:\s+(?:Corp|Inc|Ltd|Company|Group|Technology))'
+        companies = []
+        locations = []
+        investments = []
+        
+        for item in news_items[:50]:
+            text = f"{item['title']} {item.get('summary', '')}"
             
-            for entry in parsed.entries[:10]:  # Limit to 10 per feed
-                title = entry.get('title', 'No title')
-                summary = entry.get('summary', '') or entry.get('description', '')
-                link = entry.get('link', '')
-                
-                # Quick keyword check
-                text_to_check = (title + " " + summary).lower()
-                if not any(kw.lower() in text_to_check for kw in KEYWORDS):
-                    continue
-                
-                log(f"  ✅ Match: {title[:50]}...")
-                
-                published = entry.get('published', datetime.now().strftime('%Y-%m-%d'))
-                source = feed['url'].split('/')[2] if '//' in feed['url'] else feed['url']
-                
-                news_items.append({
-                    "title": title,
-                    "summary": summary[:500],
-                    "link": link,
-                    "source": source,
-                    "published": published
-                })
-                
-        except Exception as e:
-            log(f"  ⚠️ Error fetching {feed['url']}: {e}", "WARNING")
-            continue
-    
-    log(f"✅ Total articles fetched: {len(news_items)}")
-    return news_items
-
-def generate_report(news_items):
-    """Generate report using DeepSeek API with better error handling"""
-    log("Starting report generation...")
-    
-    if not news_items:
-        log("❌ No news items to generate report", "ERROR")
-        return None
-    
-    # Prepare input (limit to 20 items for API)
-    news_summary = []
-    for i, item in enumerate(news_items[:20]):
-        news_summary.append(f"{i+1}. {item['title']} - {item['source']}")
-    
-    news_text = "\n".join(news_summary)
-    log(f"Prepared {len(news_summary)} items for API")
-    
-    # Simpler prompt that's more likely to return valid JSON
-    system_prompt = """You are an industry analyst. Return ONLY a valid JSON object with no other text.
-The JSON must have this exact structure:
-{
-  "executive_summary": "2-3 sentence summary",
-  "factory_news": [],
-  "tech_table": [],
-  "expos": []
-}
-
-For factory_news, each item should have: company, location, details, link
-For tech_table, each item should have: name, application, suppliers (array)
-For expos, each item should have: name, date, location, link
-
-If no news for a category, return empty array."""
-    
-    try:
-        log("Calling DeepSeek API...")
-        start_time = time.time()
-        
-        response = openai.ChatCompletion.create(
-            model="deepseek-chat",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"Based on these news articles, create a JSON report:\n{news_text}"}
-            ],
-            temperature=0.2,
-            max_tokens=1500,
-            timeout=30
-        )
-        
-        api_time = time.time() - start_time
-        log(f"✅ API response received in {api_time:.1f} seconds")
-        
-        # Get the response content
-        content = response.choices[0].message.content
-        log(f"Raw response length: {len(content)} characters")
-        log(f"Raw response preview: {content[:200]}...")
-        
-        # Try to parse JSON
-        try:
-            result = json.loads(content)
-            log("✅ Successfully parsed JSON response")
-        except json.JSONDecodeError as e:
-            log(f"❌ JSON parse error: {e}", "ERROR")
-            log("Attempting to extract JSON from response...")
+            # Find companies
+            found_companies = re.findall(company_pattern, text)
+            companies.extend(found_companies)
             
-            # Try to find JSON in the response (in case there's extra text)
-            json_match = re.search(r'\{.*\}', content, re.DOTALL)
-            if json_match:
-                try:
-                    result = json.loads(json_match.group())
-                    log("✅ Extracted and parsed JSON from response")
-                except:
-                    log("❌ Could not parse extracted JSON", "ERROR")
-                    result = None
-            else:
-                result = None
-        
-        if result:
-            # Ensure all required fields exist
-            if "executive_summary" not in result:
-                result["executive_summary"] = "Summary not available"
-            if "factory_news" not in result:
-                result["factory_news"] = []
-            if "tech_table" not in result:
-                result["tech_table"] = []
-            if "expos" not in result:
-                result["expos"] = []
+            # Find locations in Southeast Asia
+            sea_locations = ['Thailand', 'Vietnam', 'Indonesia', 'Malaysia', 'Singapore', 'Philippines', 'Myanmar', 'Cambodia', 'Laos']
+            for loc in sea_locations:
+                if loc.lower() in text.lower():
+                    locations.append(loc)
             
-            log(f"Report generated: factory={len(result['factory_news'])}, tech={len(result['tech_table'])}, expos={len(result['expos'])}")
-            return result
-        else:
-            # Return fallback report
-            log("Using fallback report template", "WARNING")
-            return {
-                "executive_summary": "Based on today's news, several developments in Southeast Asian manufacturing and technology sectors were identified.",
-                "factory_news": [],
-                "tech_table": [],
-                "expos": []
-            }
+            # Find investment figures
+            investment_pattern = r'\$?([0-9,]+(?:\.[0-9]+)?)\s*(?:billion|million|B|M)'
+            found_investments = re.findall(investment_pattern, text)
+            investments.extend(found_investments)
         
-    except Exception as e:
-        log(f"❌ API error: {e}", "ERROR")
-        traceback.print_exc()
-        # Return fallback report
+        # Count frequencies
+        top_companies = Counter(companies).most_common(10)
+        top_locations = Counter(locations).most_common(5)
+        
         return {
-            "executive_summary": "Technical issue generating full report. Please check back later.",
-            "factory_news": [],
-            "tech_table": [],
-            "expos": []
+            'top_companies': top_companies,
+            'top_locations': top_locations,
+            'total_investments': len(investments),
+            'estimated_value': investments[:5]  # Top 5 investment figures
         }
-
-def create_html_report(report_data, news_items):
-    """Create HTML report from data"""
-    log("Creating HTML report...")
-    date = datetime.now().strftime('%B %d, %Y')
     
-    # Factory news HTML
-    factory_html = ""
-    for item in report_data.get("factory_news", []):
-        company = item.get('company', 'Unknown')
-        location = item.get('location', '')
-        details = item.get('details', '')
-        link = item.get('link', '#')
-        factory_html += f"""
-        <div style="margin:15px 0; padding:15px; border-left:4px solid #0066cc; background:#f8f9fa;">
-            <strong style="font-size:1.1em;">{company}</strong> - {location}<br>
-            <p style="margin:8px 0;">{details}</p>
-            <small><a href="{link}" style="color:#0066cc;">Source</a></small>
-        </div>
-        """
-    
-    # Tech table HTML
-    tech_html = ""
-    for item in report_data.get("tech_table", []):
-        name = item.get('name', '')
-        application = item.get('application', '')
-        suppliers = item.get('suppliers', [])
-        if isinstance(suppliers, list):
-            suppliers_text = ", ".join(suppliers)
-        else:
-            suppliers_text = str(suppliers)
-        tech_html += f"<tr><td><strong>{name}</strong></td><td>{application}</td><td>{suppliers_text}</td></tr>"
-    
-    # Expos HTML
-    expos_html = ""
-    for item in report_data.get("expos", []):
-        name = item.get('name', '')
-        date_val = item.get('date', '')
-        location = item.get('location', '')
-        link = item.get('link', '#')
-        expos_html += f"""
-        <div style="margin:15px 0; padding:15px; background:#f8f9fa; border-radius:5px;">
-            <strong style="font-size:1.1em;">{name}</strong><br>
-            📅 {date_val} | 📍 {location}<br>
-            <a href="{link}" style="color:#0066cc;">Official Website</a>
-        </div>
-        """
-    
-    # Stats
-    factory_count = len(report_data.get("factory_news", []))
-    tech_count = len(report_data.get("tech_table", []))
-    expo_count = len(report_data.get("expos", []))
-    
-    html = f"""<!DOCTYPE html>
-<html>
+    def generate_executive_dashboard(self, news_items, trends):
+        """Generate professional HTML dashboard"""
+        self.log("🎨 Creating executive dashboard...")
+        
+        date = datetime.now().strftime('%B %d, %Y')
+        
+        # Separate news by category
+        factory_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
+                      for k in ['factory', 'plant', 'manufacturing', 'production', 'facility'])]
+        
+        tech_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
+                    for k in ['technology', 'innovation', 'AR', 'VR', 'AI', 'chip', 'semiconductor']]
+        
+        exhibition_news = [n for n in news_items if any(k in (n['title']+n.get('summary','')).lower() 
+                          for k in ['exhibition', 'expo', 'conference', 'trade show', 'AWE', 'CES']]
+        
+        # Create detailed sections
+        factory_section = self._create_factory_section(factory_news[:8])
+        tech_section = self._create_tech_section(tech_news[:10])
+        exhibition_section = self._create_exhibition_section(exhibition_news[:6])
+        trends_section = self._create_trends_section(trends)
+        
+        # Build complete HTML
+        html = f"""<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>SEA Tech Report - {date}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEA Tech Intelligence Dashboard - {date}</title>
     <style>
+        /* Professional Executive Styling */
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-            margin: 30px;
-            line-height: 1.6;
-            color: #333;
-            background: #fff;
-        }}
-        h1 {{
+            font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
             color: #1a1a1a;
-            border-bottom: 3px solid #0066cc;
-            padding-bottom: 15px;
-            margin-bottom: 30px;
+            line-height: 1.6;
+            padding: 30px 20px;
         }}
-        h2 {{
-            color: #0066cc;
-            margin: 30px 0 20px;
+        
+        .dashboard {{
+            max-width: 1400px;
+            margin: 0 auto;
         }}
-        .stats {{
-            display: flex;
-            gap: 20px;
-            margin: 30px 0;
-            flex-wrap: wrap;
-        }}
-        .stat-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        
+        /* Header Section */
+        .header {{
+            background: linear-gradient(135deg, #0a1929 0%, #1a2a3a 100%);
             color: white;
+            padding: 40px 50px;
+            border-radius: 20px 20px 0 0;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }}
+        
+        .header h1 {{
+            font-size: 2.5em;
+            font-weight: 300;
+            margin-bottom: 10px;
+        }}
+        
+        .header h1 strong {{
+            font-weight: 600;
+            color: #ffd700;
+        }}
+        
+        .header .date {{
+            color: #94a3b8;
+            font-size: 1.1em;
+            margin-bottom: 20px;
+        }}
+        
+        .header .meta {{
+            display: flex;
+            gap: 30px;
+            color: #cbd5e1;
+            font-size: 0.95em;
+            border-top: 1px solid #334155;
+            padding-top: 20px;
+        }}
+        
+        /* Executive Summary Card */
+        .summary-card {{
+            background: white;
+            border-radius: 16px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 6px solid #ffd700;
+        }}
+        
+        .summary-card h2 {{
+            color: #0a1929;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }}
+        
+        .summary-card p {{
+            font-size: 1.2em;
+            color: #334155;
+            line-height: 1.8;
+        }}
+        
+        /* KPI Grid */
+        .kpi-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }}
+        
+        .kpi-card {{
+            background: white;
+            border-radius: 16px;
             padding: 25px;
-            border-radius: 10px;
-            flex: 1;
-            min-width: 150px;
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
         }}
-        .stat-number {{
-            font-size: 36px;
-            font-weight: bold;
-            margin-bottom: 5px;
+        
+        .kpi-card:hover {{
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }}
-        .stat-label {{
-            font-size: 14px;
-            opacity: 0.9;
+        
+        .kpi-icon {{
+            font-size: 2.5em;
+            margin-bottom: 15px;
+        }}
+        
+        .kpi-value {{
+            font-size: 2.8em;
+            font-weight: 600;
+            color: #0a1929;
+            line-height: 1.2;
+        }}
+        
+        .kpi-label {{
+            color: #64748b;
+            font-size: 1em;
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin-bottom: 10px;
         }}
-        table {{
+        
+        .kpi-trend {{
+            color: #10b981;
+            font-size: 0.9em;
+        }}
+        
+        /* Section Headers */
+        .section-header {{
+            margin: 50px 0 30px;
+            position: relative;
+        }}
+        
+        .section-header h2 {{
+            font-size: 2.2em;
+            color: #0a1929;
+            font-weight: 500;
+            display: inline-block;
+            background: #f0f2f5;
+            padding-right: 20px;
+        }}
+        
+        .section-header::after {{
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, #ffd700, #e0e0e0);
+            z-index: -1;
+        }}
+        
+        /* Manufacturing Grid */
+        .manufacturing-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }}
+        
+        .manufacturing-card {{
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 1px solid #e0e0e0;
+        }}
+        
+        .company-header {{
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }}
+        
+        .company-logo {{
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #0a1929 0%, #1a2a3a 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ffd700;
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-right: 15px;
+        }}
+        
+        .company-info h3 {{
+            font-size: 1.3em;
+            margin-bottom: 5px;
+            color: #0a1929;
+        }}
+        
+        .company-meta {{
+            color: #64748b;
+            font-size: 0.9em;
+        }}
+        
+        .detail-row {{
+            margin: 15px 0;
+            padding: 10px 0;
+            border-bottom: 1px dashed #e0e0e0;
+        }}
+        
+        .detail-label {{
+            color: #64748b;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }}
+        
+        .detail-value {{
+            font-weight: 500;
+            color: #0a1929;
+        }}
+        
+        .investment-badge {{
+            background: #10b981;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            display: inline-block;
+            margin-right: 8px;
+        }}
+        
+        /* Technology Table */
+        .tech-table {{
             width: 100%;
             border-collapse: collapse;
-            margin: 20px 0;
             background: white;
-            border-radius: 8px;
+            border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
         }}
-        th {{
-            background: #0066cc;
+        
+        .tech-table th {{
+            background: #0a1929;
             color: white;
-            padding: 12px;
+            font-weight: 600;
+            padding: 18px 15px;
             text-align: left;
         }}
-        td {{
-            padding: 12px;
+        
+        .tech-table td {{
+            padding: 18px 15px;
             border-bottom: 1px solid #e0e0e0;
+            vertical-align: top;
         }}
-        tr:hover {{
-            background: #f5f5f5;
+        
+        .tech-table tr:hover {{
+            background: #f8fafc;
         }}
+        
+        .tech-name {{
+            font-weight: 600;
+            color: #0a1929;
+            font-size: 1.1em;
+        }}
+        
+        .supplier-tags {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }}
+        
+        .supplier-tag {{
+            background: #e6f7ff;
+            color: #0066cc;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }}
+        
+        /* Exhibition Cards */
+        .exhibition-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }}
+        
+        .exhibition-card {{
+            background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+            border-radius: 16px;
+            padding: 25px;
+            border: 1px solid #e0e0e0;
+        }}
+        
+        .exhibition-name {{
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #0a1929;
+            margin-bottom: 15px;
+        }}
+        
+        .exhibition-dates {{
+            color: #0066cc;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }}
+        
+        .exhibition-venue {{
+            color: #64748b;
+            margin-bottom: 20px;
+        }}
+        
+        .exhibitor-list {{
+            margin: 15px 0;
+        }}
+        
+        .exhibitor-item {{
+            background: #f1f5f9;
+            color: #334155;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+            margin: 3px;
+        }}
+        
+        /* Trends Section */
+        .trends-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin: 30px 0;
+        }}
+        
+        .trend-card {{
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }}
+        
+        .trend-card h3 {{
+            color: #0a1929;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+        }}
+        
+        .trend-list {{
+            list-style: none;
+        }}
+        
+        .trend-item {{
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+        }}
+        
+        .trend-rank {{
+            width: 25px;
+            height: 25px;
+            background: #ffd700;
+            color: #0a1929;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 12px;
+            font-size: 0.9em;
+        }}
+        
+        /* Footer */
         .footer {{
-            margin-top: 40px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
-            color: #666;
-            font-size: 12px;
+            background: #0a1929;
+            color: white;
+            padding: 40px;
+            border-radius: 0 0 20px 20px;
+            margin-top: 50px;
             text-align: center;
+        }}
+        
+        .footer p {{
+            color: #94a3b8;
+            margin-bottom: 10px;
+        }}
+        
+        .disclaimer {{
+            font-size: 0.85em;
+            color: #64748b;
+            margin-top: 20px;
+        }}
+        
+        /* Responsive */
+        @media (max-width: 768px) {{
+            .trends-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .manufacturing-grid {{
+                grid-template-columns: 1fr;
+            }}
         }}
     </style>
 </head>
 <body>
-    <h1>📊 Southeast Asia Tech Report - {date}</h1>
-    
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-number">{factory_count}</div>
-            <div class="stat-label">Factory Projects</div>
+    <div class="dashboard">
+        <!-- Header -->
+        <div class="header">
+            <h1><strong>SEA TECH</strong> INTELLIGENCE DASHBOARD</h1>
+            <div class="date">{date}</div>
+            <div class="meta">
+                <span>📊 Articles Analyzed: {len(news_items)}</span>
+                <span>🌏 Sources: 15+ Publications</span>
+                <span>📧 For: Executive Review</span>
+                <span>⏰ {datetime.now().strftime('%H:%M:%S')}</span>
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-number">{tech_count}</div>
-            <div class="stat-label">New Technologies</div>
+        
+        <!-- Executive Summary -->
+        <div class="summary-card">
+            <h2>📋 Executive Summary</h2>
+            <p>{self._generate_executive_summary(news_items, trends)}</p>
         </div>
-        <div class="stat-card">
-            <div class="stat-number">{expo_count}</div>
-            <div class="stat-label">Exhibitions</div>
+        
+        <!-- KPI Dashboard -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-icon">🏭</div>
+                <div class="kpi-label">Manufacturing Projects</div>
+                <div class="kpi-value">{len(factory_news)}</div>
+                <div class="kpi-trend">↑ {len([n for n in factory_news if 'investment' in n.get('summary','').lower()])} with investments</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">💡</div>
+                <div class="kpi-label">New Technologies</div>
+                <div class="kpi-value">{len(tech_news)}</div>
+                <div class="kpi-trend">{len([n for n in tech_news if 'AR' in n.get('title','')])} AR/VR related</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🤝</div>
+                <div class="kpi-label">Suppliers Identified</div>
+                <div class="kpi-value">{len(trends['top_companies'])}</div>
+                <div class="kpi-trend">New this week</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🎪</div>
+                <div class="kpi-label">Upcoming Events</div>
+                <div class="kpi-value">{len(exhibition_news)}</div>
+                <div class="kpi-trend">Next 30 days</div>
+            </div>
         </div>
-    </div>
-    
-    <h2>📋 Executive Summary</h2>
-    <p style="background:#f8f9fa; padding:20px; border-radius:8px;">{report_data.get('executive_summary', 'No summary available.')}</p>
-    
-    <h2>🏭 Factory News</h2>
-    {factory_html if factory_html else '<p style="color:#666;">No factory news today.</p>'}
-    
-    <h2>🔬 New Technologies</h2>
-    <table>
-        <tr>
-            <th>Technology</th>
-            <th>Application</th>
-            <th>Suppliers</th>
-        </tr>
-        {tech_html if tech_html else '<tr><td colspan="3" style="text-align:center; color:#666;">No technology news today.</td></tr>'}
-    </table>
-    
-    <h2>🎪 Exhibitions</h2>
-    {expos_html if expos_html else '<p style="color:#666;">No exhibition news today.</p>'}
-    
-    <div class="footer">
-        Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Articles analyzed: {len(news_items)}<br>
-        Source: Tech News RSS | Daily Report
+        
+        <!-- Manufacturing Section -->
+        <div class="section-header">
+            <h2>🏭 Southeast Asia Manufacturing & Investment</h2>
+        </div>
+        {factory_section}
+        
+        <!-- Technology Section -->
+        <div class="section-header">
+            <h2>🔬 Emerging Technologies & Supplier Intelligence</h2>
+        </div>
+        {tech_section}
+        
+        <!-- Exhibitions Section -->
+        <div class="section-header">
+            <h2>🎪 Industry Events & Exhibitions</h2>
+        </div>
+        {exhibition_section}
+        
+        <!-- Market Trends -->
+        <div class="section-header">
+            <h2>📈 Market Intelligence & Trends</h2>
+        </div>
+        {trends_section}
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>This intelligence briefing is automatically generated for executive review.</p>
+            <p>Data sources: Bloomberg, Reuters, TechCrunch, Digitimes, Bangkok Post, The Star, Straits Times, and industry publications.</p>
+            <div class="disclaimer">
+                © 2026 Southeast Asia Tech Intelligence • For internal use only • Generated by DeepSeek AI
+            </div>
+        </div>
     </div>
 </body>
 </html>"""
+        
+        return html
     
-    # Save HTML locally for debugging
-    try:
-        with open("report.html", "w", encoding='utf-8') as f:
-            f.write(html)
-        log("✅ Saved report.html")
-    except Exception as e:
-        log(f"⚠️ Could not save HTML: {e}", "WARNING")
+    def _create_factory_section(self, factory_news):
+        """Create detailed manufacturing section"""
+        if not factory_news:
+            return '<p style="color:#666; text-align:center;">No manufacturing news today.</p>'
+        
+        html = '<div class="manufacturing-grid">'
+        for item in factory_news:
+            # Extract company name (simplified)
+            company = item['title'].split()[0] if item['title'].split() else "Unknown"
+            
+            # Determine investment if mentioned
+            investment = "Undisclosed"
+            if 'invest' in item.get('summary', '').lower() or '$' in item.get('summary', ''):
+                investment = "See details"
+            
+            html += f"""
+            <div class="manufacturing-card">
+                <div class="company-header">
+                    <div class="company-logo">{company[0]}</div>
+                    <div class="company-info">
+                        <h3>{html.escape(item['title'][:80])}</h3>
+                        <div class="company-meta">{item['source']} • {item.get('region', 'Global')}</div>
+                    </div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Investment</div>
+                    <div class="detail-value"><span class="investment-badge">{investment}</span></div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Summary</div>
+                    <div class="detail-value">{html.escape(item.get('summary', '')[:200])}...</div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <a href="{item['link']}" style="color: #0066cc; text-decoration: none;">🔗 Read More →</a>
+                </div>
+                <div style="margin-top: 10px; color: #94a3b8; font-size: 0.85em;">
+                    Published: {item['published'][:16]}
+                </div>
+            </div>
+            """
+        html += '</div>'
+        return html
     
-    return html
+    def _create_tech_section(self, tech_news):
+        """Create detailed technology section with supplier information"""
+        if not tech_news:
+            return '<p style="color:#666; text-align:center;">No technology news today.</p>'
+        
+        html = """<table class="tech-table">
+            <thead>
+                <tr>
+                    <th>Technology</th>
+                    <th>Application</th>
+                    <th>Key Suppliers</th>
+                    <th>Source</th>
+                </tr>
+            </thead>
+            <tbody>"""
+        
+        for item in tech_news[:10]:
+            # Extract potential suppliers from text
+            suppliers = []
+            supplier_pattern = r'([A-Z][a-zA-Z0-9]+(?:[\s-][A-Z][a-zA-Z0-9]+)?)\s+(?:supplies?|partners?|collaborates?|provides?)'
+            found_suppliers = re.findall(supplier_pattern, item.get('summary', '') + item['title'])
+            suppliers = found_suppliers[:3] if found_suppliers else ["Information pending"]
+            
+            supplier_tags = ''.join([f'<span class="supplier-tag">{s}</span>' for s in suppliers])
+            
+            # Determine application area
+            application = "Consumer Electronics"
+            if 'AR' in item['title'] or 'VR' in item['title']:
+                application = "AR/VR Devices"
+            elif 'chip' in item['title'].lower() or 'semiconductor' in item['title'].lower():
+                application = "Semiconductors"
+            elif 'display' in item['title'].lower() or 'screen' in item['title'].lower():
+                application = "Display Technology"
+            
+            html += f"""
+            <tr>
+                <td>
+                    <div class="tech-name">{html.escape(item['title'][:60])}</div>
+                    <div style="color: #64748b; font-size: 0.9em;">{item['region']}</div>
+                </td>
+                <td>{application}</td>
+                <td><div class="supplier-tags">{supplier_tags}</div></td>
+                <td><a href="{item['link']}" style="color: #0066cc;">{item['source']}</a></td>
+            </tr>"""
+        
+        html += "</tbody></table>"
+        return html
+    
+    def _create_exhibition_section(self, exhibition_news):
+        """Create detailed exhibition section"""
+        if not exhibition_news:
+            return '<p style="color:#666; text-align:center;">No exhibition news today.</p>'
+        
+        html = '<div class="exhibition-grid">'
+        for item in exhibition_news:
+            # Extract date if available
+            date_match = re.search(r'\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4}', item.get('summary', ''))
+            date = date_match.group() if date_match else "TBA"
+            
+            html += f"""
+            <div class="exhibition-card">
+                <div class="exhibition-name">{html.escape(item['title'][:60])}</div>
+                <div class="exhibition-dates">📅 {date}</div>
+                <div class="exhibition-venue">📍 {item.get('region', 'TBA').title()}</div>
+                <div class="exhibitor-list">
+                    <strong>Featured:</strong><br>
+                    <span class="exhibitor-item">{item['source']}</span>
+                </div>
+                <div style="margin-top: 15px;">
+                    <a href="{item['link']}" style="color: #0066cc; text-decoration: none;">🔗 Event Details →</a>
+                </div>
+            </div>
+            """
+        html += '</div>'
+        return html
+    
+    def _create_trends_section(self, trends):
+        """Create market trends section"""
+        html = '<div class="trends-grid">'
+        
+        # Top Companies
+        html += '<div class="trend-card"><h3>🏢 Top Companies</h3><ul class="trend-list">'
+        for i, (company, count) in enumerate(trends['top_companies'][:5], 1):
+            html += f'<li class="trend-item"><span class="trend-rank">{i}</span>{company} ({count} mentions)</li>'
+        html += '</ul></div>'
+        
+        # Top Locations
+        html += '<div class="trend-card"><h3>📍 Hotspots</h3><ul class="trend-list">'
+        for i, (location, count) in enumerate(trends['top_locations'][:5], 1):
+            html += f'<li class="trend-item"><span class="trend-rank">{i}</span>{location} ({count} projects)</li>'
+        html += '</ul></div>'
+        
+        # Investment Trends
+        html += f"""
+        <div class="trend-card">
+            <h3>💰 Investment Insights</h3>
+            <ul class="trend-list">
+                <li class="trend-item">Total investment mentions: {trends['total_investments']}</li>
+                <li class="trend-item">Top deals: {', '.join(trends['estimated_value'][:3]) if trends['estimated_value'] else 'N/A'}</li>
+                <li class="trend-item">Active sectors: Electronics, Semiconductors, EV</li>
+            </ul>
+        </div>
+        """
+        
+        html += '</div>'
+        return html
+    
+    def _generate_executive_summary(self, news_items, trends):
+        """Generate executive summary using AI"""
+        try:
+            prompt = f"""Write a brief executive summary (3-4 sentences) of today's Southeast Asia tech and manufacturing news.
+Focus on: investments, new factories, major technology announcements, and strategic trends.
 
-def send_email(subject, html_content):
-    """Send email with report"""
-    log("\n" + "="*40)
-    log("SENDING EMAIL")
-    log("="*40)
-    
-    try:
-        # Validate configuration
-        if not EMAIL_CONFIG["sender_email"]:
-            log("❌ SENDER_EMAIL is missing", "ERROR")
-            return False
-        if not EMAIL_CONFIG["sender_password"]:
-            log("❌ SENDER_PASSWORD is missing", "ERROR")
-            return False
-        if not EMAIL_CONFIG["receiver_email"]:
-            log("❌ RECEIVER_EMAIL is missing", "ERROR")
-            return False
-        
-        # Parse recipients using our fixed function
-        recipients = parse_recipients(EMAIL_CONFIG["receiver_email"])
-        
-        if not recipients:
-            log("❌ No valid email recipients found", "ERROR")
-            return False
-        
-        # Test SMTP connection first
-        if not test_smtp_connection():
-            log("❌ SMTP connection test failed", "ERROR")
-            return False
-        
-        # Test login
-        if not test_smtp_login():
-            log("❌ SMTP login test failed", "ERROR")
-            return False
-        
-        # Initialize yagmail
-        log("Initializing yagmail...")
-        yag = yagmail.SMTP(
-            user=EMAIL_CONFIG["sender_email"],
-            password=EMAIL_CONFIG["sender_password"],
-            host=EMAIL_CONFIG["smtp_host"],
-            port=EMAIL_CONFIG["smtp_port"],
-            smtp_starttls=True,
-            smtp_ssl=False
-        )
-        log("✅ yagmail initialized")
-        
-        # Send email
-        log(f"Sending to: {recipients}")
-        log(f"Subject: {subject}")
-        log(f"Content length: {len(html_content)} chars")
-        
-        yag.send(
-            to=recipients,
-            subject=subject,
-            contents=html_content
-        )
-        
-        log("✅ Email sent successfully!")
-        return True
-        
-    except Exception as e:
-        log(f"❌ Email failed: {e}", "ERROR")
-        traceback.print_exc()
-        return False
+Key stats:
+- Total articles: {len(news_items)}
+- Top locations: {trends['top_locations'][:3]}
+- Investment mentions: {trends['total_investments']}
 
-# ==================== MAIN ====================
-
-def main():
-    log("\n" + "="*60)
-    log("MAIN FUNCTION STARTED")
-    log("="*60)
-    
-    start_time = time.time()
-    
-    # Step 1: Fetch news
-    log("\n📡 STEP 1: Fetching news...")
-    news_items = fetch_news()
-    
-    if not news_items:
-        log("❌ No news found, exiting", "ERROR")
-        return
-    
-    # Step 2: Generate report
-    log("\n🤖 STEP 2: Generating report...")
-    report_data = generate_report(news_items)
-    
-    # Even if report generation partially fails, continue
-    if not report_data:
-        log("⚠️ Report generation returned None, creating minimal report", "WARNING")
-        report_data = {
-            "executive_summary": "Today's news summary based on fetched articles.",
-            "factory_news": [],
-            "tech_table": [],
-            "expos": []
-        }
-    
-    # Step 3: Create HTML
-    log("\n🎨 STEP 3: Creating HTML...")
-    html_content = create_html_report(report_data, news_items)
-    
-    # Step 4: Send email
-    log("\n📧 STEP 4: Sending email...")
-    subject = f"📊 SEA Tech Report {datetime.now().strftime('%Y-%m-%d')}"
-    
-    email_sent = send_email(subject, html_content)
-    
-    # Final status
-    elapsed = time.time() - start_time
-    log("\n" + "="*60)
-    log(f"SCRIPT COMPLETED in {elapsed:.1f} seconds")
-    log(f"Email sent: {'✅ YES' if email_sent else '❌ NO'}")
-    log("="*60)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        log(f"❌ Unhandled exception: {e}", "ERROR")
-        traceback.print_exc()
+Make it professional and impactful for a company director."""
+            
+            response = openai.ChatCompletion.create(
+               
