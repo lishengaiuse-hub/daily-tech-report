@@ -2,54 +2,40 @@ name: Fast Tech Report
 
 on:
   schedule:
+    # Runs at 00:55 UTC (08:55 Singapore time)
     - cron: '55 0 * * *'
-  workflow_dispatch:
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true  # Force Node.js 24
+  workflow_dispatch:  # Allows manual trigger
 
 jobs:
-  fast-report:
+  generate-and-send-report:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        
-      - name: Setup Python
+      
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+          cache: 'pip'  # Cache dependencies for faster runs
+      
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip list  # Show installed packages
-          
-      - name: Debug - Environment Info
+          echo "✅ Dependencies installed"
+      
+      - name: Debug - Show files
         run: |
-          echo "Current time: $(date)"
-          echo "Python version: $(python --version)"
-          echo "Working directory: $(pwd)"
-          echo "Files in directory:"
+          echo "Current directory: $(pwd)"
+          echo "Files in repository:"
           ls -la
-          echo "Environment variables (safe ones):"
-          env | grep -v PASSWORD | grep -v KEY
-          
-      - name: Debug - Test Gmail Connection
-        run: |
-          python -c "
-import smtplib
-try:
-    server = smtplib.SMTP('smtp.gmail.com', 587)
-    server.starttls()
-    print('✅ Gmail SMTP connection successful')
-    server.quit()
-except Exception as e:
-    print(f'❌ Gmail SMTP connection failed: {e}')
-"
-          
-      - name: Run report with verbose output
+          echo "Python version: $(python --version)"
+          echo "Pip packages:"
+          pip list
+      
+      - name: Run Tech Report Script
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -58,20 +44,17 @@ except Exception as e:
           SENDER_PASSWORD: ${{ secrets.SENDER_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
         run: |
-          echo "Starting script..."
-          python -u daily_news_english.py 2>&1 | tee script_output.log
-          echo "Script finished with exit code: $?"
-          
-      - name: Upload all files for debugging
-        if: always()
+          echo "Starting script at $(date)"
+          python daily_news_english.py
+          echo "Script finished at $(date)"
+      
+      - name: Upload logs and reports
+        if: always()  # Run even if previous step fails
         uses: actions/upload-artifact@v4
         with:
-          name: debug-output
+          name: report-output
           path: |
             *.html
-            *.pdf
             *.log
             *.txt
-            script_output.log
-          retention-days: 7
           if-no-files-found: warn
