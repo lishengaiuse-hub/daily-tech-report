@@ -12,7 +12,6 @@ import feedparser
 import requests
 from datetime import datetime
 import openai
-from jinja2 import Environment, FileSystemLoader
 import yagmail
 from weasyprint import HTML
 import tempfile
@@ -72,14 +71,14 @@ def fetch_news_fast():
     """
     news_items = []
     
-    # Set feedparser timeouts
+    # Set feedparser user agent
     feedparser.USER_AGENT = "Mozilla/5.0 (compatible; RSS Reader; +https://github.com/)"
     
     for feed in RSS_FEEDS:
         try:
             print(f"Fetching: {feed['url']}")
             
-            # Add timeout to feedparser
+            # Parse feed with timeout
             parsed = feedparser.parse(feed['url'])
             
             # Take only first 10 items from each feed
@@ -182,7 +181,7 @@ Use ONLY the news provided. English only. Keep it concise."""
             "stats": {"factory_count": 0, "tech_count": 0, "expo_count": 0}
         }
 
-def render_simple_report(report_data):
+def render_simple_report(report_data, news_items):
     """
     Simple HTML report (no complex template dependencies)
     """
@@ -191,36 +190,56 @@ def render_simple_report(report_data):
     # Build factory news HTML
     factory_html = ""
     for item in report_data.get("factory_news", []):
+        company = item.get('company', 'Unknown')
+        location = item.get('location', '')
+        details = item.get('details', '')
+        link = item.get('link', '#')
         factory_html += f"""
         <div style="margin:15px 0; padding:10px; border-left:3px solid #0066cc;">
-            <strong>{item.get('company', 'Unknown')}</strong> - {item.get('location', '')}<br>
-            {item.get('details', '')}<br>
-            <small>Source: <a href="{item.get('link', '#')}">{item.get('link', '')[:50]}...</a></small>
+            <strong>{company}</strong> - {location}<br>
+            {details}<br>
+            <small>Source: <a href="{link}">{link[:50]}...</a></small>
         </div>
         """
     
     # Build tech table HTML
     tech_html = ""
     for item in report_data.get("tech_table", []):
-        suppliers = ", ".join(item.get('suppliers', [])) if isinstance(item.get('suppliers'), list) else str(item.get('suppliers', ''))
+        name = item.get('name', '')
+        application = item.get('application', '')
+        suppliers = item.get('suppliers', [])
+        if isinstance(suppliers, list):
+            suppliers_text = ", ".join(suppliers)
+        else:
+            suppliers_text = str(suppliers)
         tech_html += f"""
         <tr>
-            <td><strong>{item.get('name', '')}</strong></td>
-            <td>{item.get('application', '')}</td>
-            <td>{suppliers}</td>
+            <td><strong>{name}</strong></td>
+            <td>{application}</td>
+            <td>{suppliers_text}</td>
         </tr>
         """
     
     # Build expos HTML
     expos_html = ""
     for item in report_data.get("expos", []):
+        name = item.get('name', '')
+        date_val = item.get('date', '')
+        location = item.get('location', '')
+        link = item.get('link', '#')
         expos_html += f"""
         <div style="margin:15px 0;">
-            <strong>{item.get('name', '')}</strong><br>
-            📅 {item.get('date', '')} | 📍 {item.get('location', '')}<br>
-            <a href="{item.get('link', '#')">Website</a>
+            <strong>{name}</strong><br>
+            📅 {date_val} | 📍 {location}<br>
+            <a href="{link}">Website</a>
         </div>
         """
+    
+    # Get stats
+    stats = report_data.get("stats", {})
+    factory_count = stats.get('factory_count', 0)
+    tech_count = stats.get('tech_count', 0)
+    expo_count = stats.get('expo_count', 0)
     
     html = f"""<!DOCTYPE html>
 <html>
@@ -245,15 +264,15 @@ def render_simple_report(report_data):
     
     <div class="stats">
         <div class="stat-card">
-            <div class="stat-number">{report_data['stats'].get('factory_count', 0)}</div>
+            <div class="stat-number">{factory_count}</div>
             <div>Factory Projects</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">{report_data['stats'].get('tech_count', 0)}</div>
+            <div class="stat-number">{tech_count}</div>
             <div>New Technologies</div>
         </div>
         <div class="stat-card">
-            <div class="stat-number">{report_data['stats'].get('expo_count', 0)}</div>
+            <div class="stat-number">{expo_count}</div>
             <div>Exhibitions</div>
         </div>
     </div>
@@ -297,7 +316,15 @@ def send_email_fast(subject, html_content):
         )
         
         # Parse recipients
-        recipients = [e.strip() for e in EMAIL_CONFIG["receiver_email"].replace(';', ',').split(',') if '@' in e]
+        recipients_str = EMAIL_CONFIG["receiver_email"]
+        # Handle different delimiters
+        for delimiter in [';', '\n', '|']:
+            recipients_str = recipients_str.replace(delimiter, ',')
+        recipients = [e.strip() for e in recipients_str.split(',') if '@' in e]
+        
+        if not recipients:
+            print("❌ No valid recipients found")
+            return False
         
         yag.send(
             to=recipients,
@@ -335,7 +362,7 @@ def main():
     
     # Step 3: Render HTML
     print(f"\n🎨 Rendering HTML...")
-    html_report = render_simple_report(report_data)
+    html_report = render_simple_report(report_data, news_items)
     
     # Step 4: Send email (skip PDF for speed)
     print(f"\n📧 Sending email...")
