@@ -3,19 +3,20 @@
 
 """
 Southeast Asia Consumer Electronics Intelligence System
-Production Version
+Production Version - English Only Output
 
-Features
-- RSS aggregation (50+ sources including Chinese tech media, government sites)
-- strict consumer electronics filtering
-- deduplication
-- AI translation
+Features:
+- 50+ RSS sources with timeouts
+- Strict consumer electronics filtering
+- Deduplication
+- AI translation (Chinese to English)
 - AI executive summary
-- industry trend extraction
-- HTML executive dashboard
-- email delivery
+- Industry trend extraction
+- Professional HTML dashboard
+- Email delivery (multiple recipients)
 
 Author: Production Edition
+Last Updated: 2026
 """
 
 import os
@@ -23,11 +24,14 @@ import sys
 import re
 import time
 import hashlib
+import socket
+import requests
 import traceback
 import feedparser
 import openai
 import smtplib
 import html as html_module
+import concurrent.futures
 
 from datetime import datetime
 from collections import Counter
@@ -40,6 +44,9 @@ from email.mime.text import MIMEText
 # =====================================================
 
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    print("ERROR: DEEPSEEK_API_KEY environment variable not set")
+    sys.exit(1)
 
 openai.api_key = DEEPSEEK_API_KEY
 openai.api_base = "https://api.deepseek.com/v1"
@@ -53,14 +60,15 @@ RECEIVER_EMAIL = os.getenv("RECEIVER_EMAIL")
 
 
 # =====================================================
-# KEYWORDS (Expanded)
+# KEYWORDS (Comprehensive)
 # =====================================================
 
+# Southeast Asia Locations
 SEA_LOCATIONS = [
     # Countries
     "vietnam", "thailand", "indonesia", "malaysia", "singapore",
     "philippines", "myanmar", "cambodia", "laos", "brunei",
-    "asean", "southeast asia", "东南亚",
+    "asean", "southeast asia",
     
     # Vietnam
     "hanoi", "ho chi minh", "haiphong", "danang", "bac ninh", "thai nguyen",
@@ -81,76 +89,79 @@ SEA_LOCATIONS = [
     "manila", "cebu"
 ]
 
+# Home Appliances
 HOME_APPLIANCES_KEYWORDS = [
     # Refrigeration
-    "refrigerator", "fridge", "freezer", "冷柜", "冰箱",
+    "refrigerator", "fridge", "freezer",
     
     # Laundry
-    "washing machine", "washer", "dryer", "洗衣机",
+    "washing machine", "washer", "dryer",
     
     # HVAC
-    "air conditioner", "ac", "空调", "hvac",
+    "air conditioner", "ac", "hvac",
     
     # Cleaning
-    "vacuum", "robot vacuum", "扫地机器人", "吸尘器",
+    "vacuum", "robot vacuum", "vacuum cleaner",
     
     # Kitchen
-    "microwave", "oven", "dishwasher", "rice cooker", "电饭煲",
-    "air fryer", "空气炸锅", "coffee maker", "toaster",
+    "microwave", "oven", "dishwasher", "rice cooker",
+    "air fryer", "coffee maker", "toaster",
     
     # TV/Display
-    "tv", "television", "电视", "display", "screen"
+    "tv", "television", "display", "screen"
 ]
 
+# Mobile Electronics
 MOBILE_ELECTRONICS_KEYWORDS = [
     # Phones
-    "smartphone", "phone", "mobile", "手机",
+    "smartphone", "phone", "mobile",
     "samsung", "galaxy", "apple", "iphone", "xiaomi", "oppo", "vivo", "realme",
-    "foldable", "折叠屏",
+    "foldable",
     
     # Wearables
-    "wearable", "smartwatch", "智能手表", "fitness tracker", "手环",
+    "wearable", "smartwatch", "fitness tracker",
     
     # AR/VR
-    "ar", "vr", "ai glasses", "smart glasses", "智能眼镜", "ar glasses", "vr headset",
+    "ar", "vr", "ai glasses", "smart glasses", "ar glasses", "vr headset",
     "rokid", "htc", "vive", "meta quest", "pico",
     
     # Audio
-    "earbuds", "headphones", "tws", "耳机",
+    "earbuds", "headphones", "tws",
     
     # Tablets/Laptops
     "tablet", "ipad", "laptop", "notebook"
 ]
 
+# Manufacturing & Investment
 MANUFACTURING_KEYWORDS = [
-    "factory", "plant", "manufacturing", "production", "assembly", "生产线", "量产",
-    "facility", "新建工厂", "投产", "开工", "奠基", "investment", "invest",
-    "supplier", "供应链", "vendor", "供应商", "localization", "本地化",
-    "expansion", "扩建", "capacity", "产能",
-    "出海", "going global", "全球化", "globalization",
-    "东南亚市场", "vietnam factory", "thailand investment", "indonesia manufacturing",
-    "海外扩张", "overseas expansion"
+    "factory", "plant", "manufacturing", "production", "assembly",
+    "facility", "investment", "invest", "capacity", "expansion",
+    "supplier", "supply chain", "vendor", "localization",
+    "going global", "globalization", "overseas expansion"
 ]
 
+# Research & Breakthroughs
 RESEARCH_KEYWORDS = [
-    "research", "innovation", "prototype", "breakthrough", "研究", "突破", "创新",
-    "flexible electronics", "柔性电子", "wearable tech", "可穿戴技术",
-    "thermoelectric", "热电", "fiber chip", "纤维芯片",
-    "brain-computer", "脑机接口", "新材料", "new material",
-    "powder", "粉体", "nano", "纳米", "coating", "涂层",
-    "thin film", "薄膜", "capacitor", "电容器"
+    "research", "innovation", "prototype", "breakthrough",
+    "flexible electronics", "wearable tech", "thermoelectric",
+    "fiber chip", "new material", "advanced material",
+    "nano", "coating", "thin film", "capacitor"
 ]
 
+# Exhibitions & Events
 EXHIBITION_KEYWORDS = [
-    "expo", "exhibition", "trade show", "conference", "展", 
+    "expo", "exhibition", "trade show", "conference",
     "ces", "ifa", "mwc", "awe", "electronica"
 ]
 
+# Non-consumer electronics (to exclude)
 NON_CONSUMER_KEYWORDS = [
     "electric vehicle", "ev battery", "solar farm", "steel plant", "mining",
-    "oil and gas", "chemical plant", "pharmaceutical", "biotech"
+    "oil and gas", "chemical plant", "pharmaceutical", "biotech",
+    "medical device", "automotive", "aerospace"
 ]
 
+# Major Companies
 COMPANIES = [
     "Samsung", "Apple", "Xiaomi", "Oppo", "Vivo", "Realme",
     "Haier", "Midea", "Hisense", "Gree", "TCL",
@@ -159,6 +170,7 @@ COMPANIES = [
     "Rokid", "HTC"
 ]
 
+# Technologies to track
 TECHNOLOGY = [
     "ai", "ar", "vr", "wearable", "foldable", "smart home",
     "5g", "iot", "microled", "oled", "flexible display"
@@ -166,203 +178,201 @@ TECHNOLOGY = [
 
 
 # =====================================================
-# RSS SOURCES (Expanded - 50+ sources)
+# RSS SOURCES (Optimized - 50+ sources with priority)
 # =====================================================
 
 RSS_FEEDS = [
-    # ===== Chinese Tech Media =====
-    {"url": "https://technews.tw/feed/", "lang": "zh"},
-    {"url": "https://finance.technews.tw/feed/", "lang": "zh"},
-    {"url": "https://www.ledinside.cn/rss.xml", "lang": "zh"},
-    {"url": "https://www.digitimes.com.tw/rss/rptlist.asp", "lang": "zh"},
-    {"url": "https://www.21jingji.com/rss/", "lang": "zh"},
-    {"url": "http://world.people.com.cn/rss/index.xml", "lang": "zh"},
-    {"url": "https://ep.ycwb.com/rss/", "lang": "zh"},
-    {"url": "https://news.cnyes.com/rss", "lang": "zh"},
+    # ===== Chinese Tech Media (Priority 1) =====
+    {"url": "https://technews.tw/feed/", "lang": "zh", "priority": 1},
+    {"url": "https://finance.technews.tw/feed/", "lang": "zh", "priority": 1},
+    {"url": "https://www.ledinside.cn/rss.xml", "lang": "zh", "priority": 1},
+    {"url": "https://www.digitimes.com.tw/rss/rptlist.asp", "lang": "zh", "priority": 1},
+    {"url": "https://www.21jingji.com/rss/", "lang": "zh", "priority": 2},
+    {"url": "http://world.people.com.cn/rss/index.xml", "lang": "zh", "priority": 2},
+    {"url": "https://ep.ycwb.com/rss/", "lang": "zh", "priority": 2},
+    {"url": "https://news.cnyes.com/rss", "lang": "zh", "priority": 1},
     
     # ===== Materials & Industry Sites =====
-    {"url": "http://www.cnpowder.com.cn/rss/", "lang": "zh"},
-    {"url": "http://www.materials.cn/rss/", "lang": "zh"},
-    {"url": "https://www.xincailiao.com/rss/", "lang": "zh"},
-    {"url": "https://www.aibang.com/feed/", "lang": "zh"},
-    {"url": "https://www.aibang.com/news/feed/", "lang": "zh"},
+    {"url": "http://www.cnpowder.com.cn/rss/", "lang": "zh", "priority": 2},
+    {"url": "http://www.materials.cn/rss/", "lang": "zh", "priority": 2},
+    {"url": "https://www.xincailiao.com/rss/", "lang": "zh", "priority": 2},
+    {"url": "https://www.aibang.com/feed/", "lang": "zh", "priority": 2},
+    {"url": "https://www.aibang.com/news/feed/", "lang": "zh", "priority": 2},
     
     # ===== Chinese Overseas/Industry =====
-    {"url": "https://xiaguangshe.com/feed/", "lang": "zh"},
-    {"url": "https://www.cena.com.cn/rss.xml", "lang": "zh"},
-    {"url": "https://www.chinaoverseasemi.com/feed", "lang": "en"},
+    {"url": "https://xiaguangshe.com/feed/", "lang": "zh", "priority": 1},
+    {"url": "https://www.cena.com.cn/rss.xml", "lang": "zh", "priority": 2},
+    {"url": "https://www.chinaoverseasemi.com/feed", "lang": "en", "priority": 2},
     
     # ===== Government & Investment Sites =====
-    {"url": "https://www.mida.gov.my/press-releases/feed/", "lang": "en"},
-    {"url": "https://www.mida.gov.my/news/feed/", "lang": "en"},
-    {"url": "https://www.matrade.gov.my/en/media/press-releases/feed", "lang": "en"},
-    {"url": "https://www.crest.my/feed/", "lang": "en"},
-    {"url": "https://www.boi.go.th/upload/rss/boi_news_en.xml", "lang": "en"},
-    {"url": "https://www.edb.gov.sg/en/news-and-events/feed.html", "lang": "en"},
+    {"url": "https://www.mida.gov.my/press-releases/feed/", "lang": "en", "priority": 1},
+    {"url": "https://www.mida.gov.my/news/feed/", "lang": "en", "priority": 1},
+    {"url": "https://www.matrade.gov.my/en/media/press-releases/feed", "lang": "en", "priority": 2},
+    {"url": "https://www.crest.my/feed/", "lang": "en", "priority": 2},
+    {"url": "https://www.boi.go.th/upload/rss/boi_news_en.xml", "lang": "en", "priority": 1},
+    {"url": "https://www.edb.gov.sg/en/news-and-events/feed.html", "lang": "en", "priority": 1},
     
     # ===== Chinese Research Institutions =====
-    {"url": "https://english.cas.cn/news/rss/", "lang": "en"},
-    {"url": "http://www.cas.cn/rss/", "lang": "zh"},
-    {"url": "https://news.fudan.edu.cn/rss.xml", "lang": "zh"},
-    {"url": "https://en.ncsti.gov.cn/Latest/rss/", "lang": "en"},
+    {"url": "https://english.cas.cn/news/rss/", "lang": "en", "priority": 2},
+    {"url": "http://www.cas.cn/rss/", "lang": "zh", "priority": 2},
+    {"url": "https://news.fudan.edu.cn/rss.xml", "lang": "zh", "priority": 2},
+    {"url": "https://en.ncsti.gov.cn/Latest/rss/", "lang": "en", "priority": 2},
     
     # ===== Market Research =====
-    {"url": "https://www.gfk.com/insights/rss", "lang": "en"},
-    {"url": "https://ir.jd.com/rss", "lang": "en"},
-    {"url": "https://jingdaily.com/category/tech/feed/", "lang": "en"},
+    {"url": "https://www.gfk.com/insights/rss", "lang": "en", "priority": 2},
+    {"url": "https://ir.jd.com/rss", "lang": "en", "priority": 2},
+    {"url": "https://jingdaily.com/category/tech/feed/", "lang": "en", "priority": 2},
     
     # ===== Chinese Tech Media (English) =====
-    {"url": "https://www.chinadaily.com.cn/rss/business_rss.xml", "lang": "en"},
-    {"url": "https://www.chinadailyhk.com/rss", "lang": "en"},
-    {"url": "https://36kr.com/feed/english", "lang": "en"},
-    {"url": "https://www.kr-asia.com/feed", "lang": "en"},
+    {"url": "https://www.chinadaily.com.cn/rss/business_rss.xml", "lang": "en", "priority": 1},
+    {"url": "https://www.chinadailyhk.com/rss", "lang": "en", "priority": 1},
+    {"url": "https://36kr.com/feed/english", "lang": "en", "priority": 1},
+    {"url": "https://www.kr-asia.com/feed", "lang": "en", "priority": 1},
     
     # ===== Manufacturer Blogs =====
-    {"url": "https://www.rokid.com/blog/feed/", "lang": "en"},
-    {"url": "https://www.colmo.com.cn/news/feed/", "lang": "zh"},
+    {"url": "https://www.rokid.com/blog/feed/", "lang": "en", "priority": 2},
+    {"url": "https://www.colmo.com.cn/news/feed/", "lang": "zh", "priority": 2},
     
     # ===== Global Tech Media =====
-    {"url": "https://techcrunch.com/feed/", "lang": "en"},
-    {"url": "https://www.theverge.com/rss/index.xml", "lang": "en"},
-    {"url": "https://arstechnica.com/feed/", "lang": "en"},
-    {"url": "https://www.engadget.com/rss.xml", "lang": "en"},
-    {"url": "https://www.gsmarena.com/rss-news-reviews.php", "lang": "en"},
-    {"url": "https://www.androidauthority.com/feed/", "lang": "en"},
+    {"url": "https://techcrunch.com/feed/", "lang": "en", "priority": 1},
+    {"url": "https://www.theverge.com/rss/index.xml", "lang": "en", "priority": 1},
+    {"url": "https://arstechnica.com/feed/", "lang": "en", "priority": 2},
+    {"url": "https://www.engadget.com/rss.xml", "lang": "en", "priority": 1},
+    {"url": "https://www.gsmarena.com/rss-news-reviews.php", "lang": "en", "priority": 1},
+    {"url": "https://www.androidauthority.com/feed/", "lang": "en", "priority": 2},
     
     # ===== Southeast Asia News =====
-    {"url": "https://www.vietnam-briefing.com/news/feed/", "lang": "en"},
-    {"url": "https://e.vnexpress.net/rss/business.rss", "lang": "en"},
-    {"url": "https://www.bangkokpost.com/rss/data/business.xml", "lang": "en"},
-    {"url": "https://thailand-briefing.com/news/feed/", "lang": "en"},
-    {"url": "https://www.thestar.com.my/rss/business", "lang": "en"},
-    {"url": "https://www.nst.com.my/rss/business", "lang": "en"},
-    {"url": "https://www.straitstimes.com/news/business/rss.xml", "lang": "en"},
-    {"url": "https://sbr.com.sg/rss.xml", "lang": "en"},
-    {"url": "https://indonesia-briefing.com/news/feed/", "lang": "en"},
-    {"url": "https://www.thejakartapost.com/rss/business.xml", "lang": "en"},
-    {"url": "https://www.philstar.com/rss/business", "lang": "en"},
+    {"url": "https://www.vietnam-briefing.com/news/feed/", "lang": "en", "priority": 1},
+    {"url": "https://e.vnexpress.net/rss/business.rss", "lang": "en", "priority": 1},
+    {"url": "https://www.bangkokpost.com/rss/data/business.xml", "lang": "en", "priority": 1},
+    {"url": "https://thailand-briefing.com/news/feed/", "lang": "en", "priority": 1},
+    {"url": "https://www.thestar.com.my/rss/business", "lang": "en", "priority": 1},
+    {"url": "https://www.nst.com.my/rss/business", "lang": "en", "priority": 2},
+    {"url": "https://www.straitstimes.com/news/business/rss.xml", "lang": "en", "priority": 1},
+    {"url": "https://sbr.com.sg/rss.xml", "lang": "en", "priority": 2},
+    {"url": "https://indonesia-briefing.com/news/feed/", "lang": "en", "priority": 1},
+    {"url": "https://www.thejakartapost.com/rss/business.xml", "lang": "en", "priority": 1},
+    {"url": "https://www.philstar.com/rss/business", "lang": "en", "priority": 2},
     
     # ===== Industry Publications =====
-    {"url": "https://semiengineering.com/feed/", "lang": "en"},
-    {"url": "https://www.electronicproducts.com/feed/", "lang": "en"},
-    {"url": "https://www.displaydaily.com/feed", "lang": "en"},
+    {"url": "https://semiengineering.com/feed/", "lang": "en", "priority": 2},
+    {"url": "https://www.electronicproducts.com/feed/", "lang": "en", "priority": 2},
+    {"url": "https://www.displaydaily.com/feed", "lang": "en", "priority": 2},
 ]
 
 
 # =====================================================
-# SYSTEM CLASS
+# MAIN SYSTEM CLASS
 # =====================================================
 
 class SEAConsumerElectronicsIntel:
+    """Southeast Asia Consumer Electronics Intelligence System"""
 
     def __init__(self):
-
-        self.news = []
-        self.news_enriched = []  # 包含翻译后的新闻
-
+        """Initialize the system"""
+        self.news = []              # Raw news
+        self.news_enriched = []      # News with translations
+        self.seen_hash = set()       # Deduplication
+        
+        # Categorized news
         self.tech_news = []
         self.manufacturing_news = []
         self.research_news = []
         self.exhibition_news = []
-
-        self.seen_hash = set()
-
+        
+        # Trend data
         self.companies = []
         self.locations = []
         self.technologies = []
+        
+        # Stats
+        self.start_time = time.time()
 
 
     # -------------------------------------------------
-    # logging
+    # Logging
     # -------------------------------------------------
 
-    def log(self, msg):
-
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+    def log(self, msg, level="INFO"):
+        """Log message with timestamp"""
+        elapsed = time.time() - self.start_time
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        print(f"[{timestamp}] [{elapsed:.1f}s] {level}: {msg}")
         sys.stdout.flush()
 
 
     # -------------------------------------------------
-    # normalize news
+    # News Processing
     # -------------------------------------------------
 
     def normalize_news(self, entry, source_url, lang):
+        """Normalize news entry to standard format"""
+        try:
+            title = entry.get("title", "").strip()
+            summary = entry.get("summary") or entry.get("description") or ""
+            link = entry.get("link", "").strip()
 
-        title = entry.get("title", "").strip()
-        summary = entry.get("summary") or entry.get("description") or ""
-        link = entry.get("link", "").strip()
+            if not title or not link:
+                return None
 
-        if not title or not link:
+            # Clean HTML tags
+            summary = re.sub("<.*?>", "", summary)
+            summary = summary.replace("\n", " ").strip()
+            summary = re.sub(r'\s+', ' ', summary)  # Normalize whitespace
+
+            # Extract source domain
+            source_match = re.search(r'https?://([^/]+)', source_url)
+            source = source_match.group(1) if source_match else source_url
+
+            return {
+                "title": title,
+                "summary": summary[:600],
+                "link": link,
+                "source": source,
+                "published": entry.get("published", ""),
+                "lang": lang
+            }
+        except Exception as e:
+            self.log(f"Error normalizing news: {e}", "ERROR")
             return None
 
-        # 清理HTML标签
-        summary = re.sub("<.*?>", "", summary)
-        summary = summary.replace("\n", " ").strip()
-
-        # 提取来源域名作为source name
-        source_match = re.search(r'https?://([^/]+)', source_url)
-        source = source_match.group(1) if source_match else source_url
-
-        return {
-            "title": title,
-            "summary": summary[:600],
-            "link": link,
-            "source": source,
-            "published": entry.get("published", ""),
-            "lang": lang
-        }
-
-
-    # -------------------------------------------------
-    # relevance filter
-    # -------------------------------------------------
 
     def is_relevant_news(self, title, summary):
-
+        """Check if news is relevant (SEA location + consumer electronics)"""
         text = (title + " " + summary).lower()
 
-        # 必须包含东南亚地点
+        # Must contain Southeast Asia location
         if not any(loc in text for loc in SEA_LOCATIONS):
             return False
 
-        # 排除非消费电子类
+        # Exclude non-consumer electronics
         if any(k in text for k in NON_CONSUMER_KEYWORDS):
             return False
 
-        # 必须是消费电子产品相关
-        product = (
-            any(k in text for k in HOME_APPLIANCES_KEYWORDS) or
-            any(k in text for k in MOBILE_ELECTRONICS_KEYWORDS)
-        )
+        # Must be consumer electronics related
+        is_appliance = any(k in text for k in HOME_APPLIANCES_KEYWORDS)
+        is_mobile = any(k in text for k in MOBILE_ELECTRONICS_KEYWORDS)
+        
+        return is_appliance or is_mobile
 
-        return product
-
-
-    # -------------------------------------------------
-    # deduplication
-    # -------------------------------------------------
 
     def is_duplicate(self, title, link):
-
+        """Check for duplicates using MD5 hash"""
         key = hashlib.md5((title + link).encode()).hexdigest()
-
+        
         if key in self.seen_hash:
             return True
-
+        
         self.seen_hash.add(key)
         return False
 
 
-    # -------------------------------------------------
-    # quality score
-    # -------------------------------------------------
-
     def quality_score(self, title, summary):
-
+        """Score news quality (0-3)"""
         score = 0
         text = (title + summary).lower()
 
-        if len(summary) > 120:
+        if len(summary) > 150:
             score += 1
 
         if any(loc in text for loc in SEA_LOCATIONS):
@@ -371,197 +381,310 @@ class SEAConsumerElectronicsIntel:
         if any(k in text for k in MOBILE_ELECTRONICS_KEYWORDS + HOME_APPLIANCES_KEYWORDS):
             score += 1
 
-        if any(k in text for k in COMPANIES):
-            score += 1
-
         return score
 
 
+    def fetch_feed(self, feed):
+        """Fetch a single RSS feed with timeout"""
+        feed_url = feed["url"]
+        lang = feed.get("lang", "en")
+        
+        try:
+            # Set headers to avoid being blocked
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+                'Accept-Language': 'en-US,en;q=0.9'
+            }
+            
+            # Try requests first (with timeout)
+            response = requests.get(feed_url, timeout=8, headers=headers)
+            response.raise_for_status()
+            
+            # Parse content
+            content_type = response.headers.get('content-type', '')
+            if 'xml' in content_type or 'rss' in content_type or 'atom' in content_type:
+                parsed = feedparser.parse(response.content)
+            else:
+                # Try direct parsing
+                parsed = feedparser.parse(response.text)
+            
+        except requests.Timeout:
+            self.log(f"    ⚠️ Timeout: {feed_url[:50]}...", "WARNING")
+            return []
+        except requests.RequestException as e:
+            self.log(f"    ⚠️ Request failed: {e}", "WARNING")
+            # Fallback to feedparser direct
+            parsed = feedparser.parse(feed_url)
+        except Exception as e:
+            self.log(f"    ⚠️ Parse failed: {e}", "WARNING")
+            return []
+
+        # Process entries
+        articles = []
+        for entry in parsed.entries[:12]:  # Limit per feed
+            try:
+                item = self.normalize_news(entry, feed_url, lang)
+                
+                if not item:
+                    continue
+                
+                if self.is_duplicate(item['title'], item['link']):
+                    continue
+                
+                if not self.is_relevant_news(item['title'], item['summary']):
+                    continue
+                
+                if self.quality_score(item['title'], item['summary']) < 2:
+                    continue
+                
+                articles.append(item)
+                
+            except Exception as e:
+                self.log(f"    ⚠️ Error processing entry: {e}", "WARNING")
+                continue
+        
+        return articles
+
+
+    def fetch_news(self):
+        """Fetch all RSS feeds in parallel with priorities"""
+        self.log(f"Fetching RSS feeds ({len(RSS_FEEDS)} sources)")
+
+        # Set socket timeout
+        socket.setdefaulttimeout(10)
+
+        # Sort by priority (1 = highest)
+        priority_feeds = sorted(RSS_FEEDS, key=lambda x: x.get("priority", 2))
+        
+        # Use ThreadPoolExecutor for parallel fetching
+        all_articles = []
+        successful = 0
+        failed = 0
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+            # Submit all feed fetch tasks
+            future_to_feed = {
+                executor.submit(self.fetch_feed, feed): feed 
+                for feed in priority_feeds
+            }
+            
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_feed, timeout=60):
+                feed = future_to_feed[future]
+                try:
+                    articles = future.result(timeout=10)
+                    all_articles.extend(articles)
+                    successful += 1
+                    self.log(f"  ✅ {feed['url'][:50]}... got {len(articles)} articles")
+                except concurrent.futures.TimeoutError:
+                    failed += 1
+                    self.log(f"  ❌ Timeout: {feed['url'][:50]}...", "WARNING")
+                except Exception as e:
+                    failed += 1
+                    self.log(f"  ❌ Failed: {feed['url'][:50]}... - {str(e)[:30]}", "WARNING")
+
+        self.news = all_articles
+        self.log(f"Feed summary: {successful} successful, {failed} failed")
+        self.log(f"Total relevant news: {len(self.news)}")
+
+        # Limit total news to avoid overload
+        if len(self.news) > 60:
+            self.log(f"Limiting to 60 articles (was {len(self.news)})")
+            self.news = self.news[:60]
+
+
     # -------------------------------------------------
-    # translate Chinese to English
+    # Translation
     # -------------------------------------------------
 
     def translate_news(self, item):
-
+        """Translate Chinese news to English using DeepSeek"""
         try:
-            prompt = f"""Translate this Chinese news to English accurately.
+            prompt = f"""Translate this Chinese consumer electronics news to English accurately.
 
 Original Chinese:
 Title: {item['title']}
 Summary: {item['summary'][:500]}
 
 Requirements:
-- Keep company names accurate (海尔→Haier, 美的→Midea, 京东方→BOE)
+- Keep company names accurate (海尔 → Haier, 美的 → Midea, 京东方 → BOE)
 - Preserve technical terms, investment figures, and locations
-- Provide concise translation (2-3 sentences)
+- Use professional business English
 
-Provide:
+Provide ONLY the translation in this format:
 Title: [translated title]
-Summary: [translated summary]"""
+Summary: [translated summary (2-3 sentences)]"""
 
             response = openai.ChatCompletion.create(
                 model="deepseek-chat",
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.1,
-                max_tokens=500,
+                max_tokens=600,
                 timeout=20
             )
 
             translation = response.choices[0].message.content
-            lines = translation.split('\n', 1)
             
-            title_en = lines[0].replace('Title:', '').strip() if lines else item['title']
-            summary_en = lines[1].replace('Summary:', '').strip() if len(lines) > 1 else item['summary']
+            # Parse response
+            title_en = item['title']
+            summary_en = item['summary']
+            
+            lines = translation.strip().split('\n', 1)
+            if lines and lines[0].startswith('Title:'):
+                title_en = lines[0].replace('Title:', '').strip()
+                if len(lines) > 1 and lines[1].startswith('Summary:'):
+                    summary_en = lines[1].replace('Summary:', '').strip()
+                elif len(lines) > 1:
+                    summary_en = lines[1].strip()
 
             return {
                 **item,
                 'title_en': title_en,
-                'summary_en': summary_en
+                'summary_en': summary_en,
+                'translated': True
             }
 
         except Exception as e:
-            self.log(f"Translation failed: {e}")
+            self.log(f"Translation failed for {item['title'][:30]}...: {e}", "WARNING")
             return {
                 **item,
-                'title_en': f"[Translation] {item['title']}",
-                'summary_en': item['summary']
+                'title_en': f"[Auto-translated] {item['title']}",
+                'summary_en': item['summary'],
+                'translated': False
             }
 
 
-    # -------------------------------------------------
-    # fetch all RSS feeds
-    # -------------------------------------------------
-
-    def fetch_news(self):
-
-        self.log(f"Fetching RSS feeds ({len(RSS_FEEDS)} sources)")
-
-        for feed in RSS_FEEDS:
-
-            try:
-                self.log(f"  Fetching: {feed['url']}")
-                parsed = feedparser.parse(feed['url'])
-
-                for entry in parsed.entries[:15]:
-
-                    item = self.normalize_news(entry, feed['url'], feed.get('lang', 'en'))
-
-                    if not item:
-                        continue
-
-                    if self.is_duplicate(item['title'], item['link']):
-                        continue
-
-                    if not self.is_relevant_news(item['title'], item['summary']):
-                        continue
-
-                    if self.quality_score(item['title'], item['summary']) < 2:
-                        continue
-
-                    self.news.append(item)
-
-            except Exception as e:
-                self.log(f"  RSS error: {feed['url']} - {e}")
-                continue
-
-        self.log(f"Total relevant news: {len(self.news)}")
-
-        # 翻译中文新闻
+    def process_translations(self):
+        """Translate Chinese news in parallel"""
         chinese_news = [n for n in self.news if n.get('lang') == 'zh']
+        
+        if not chinese_news:
+            self.news_enriched = [n for n in self.news if n.get('lang') == 'en']
+            self.log("No Chinese news to translate")
+            return
+
         self.log(f"Translating {len(chinese_news)} Chinese articles...")
 
-        for cn in chinese_news:
-            translated = self.translate_news(cn)
-            self.news_enriched.append(translated)
+        # Limit translations to avoid API overload
+        to_translate = chinese_news[:12]
+        translated = []
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            future_to_news = {
+                executor.submit(self.translate_news, news): news 
+                for news in to_translate
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_news, timeout=60):
+                try:
+                    result = future.result(timeout=25)
+                    translated.append(result)
+                except Exception as e:
+                    self.log(f"Translation task failed: {e}", "WARNING")
+                    # Add original as fallback
+                    news = future_to_news[future]
+                    translated.append({
+                        **news,
+                        'title_en': news['title'],
+                        'summary_en': news['summary']
+                    })
 
-        # 英文新闻直接使用
+        # Combine with English news
         english_news = [n for n in self.news if n.get('lang') == 'en']
-        self.news_enriched.extend(english_news)
-
+        self.news_enriched = translated + english_news
+        
         self.log(f"Total enriched news: {len(self.news_enriched)}")
 
 
     # -------------------------------------------------
-    # categorize news
+    # Categorization
     # -------------------------------------------------
 
-    def categorize(self):
+    def categorize_news(self):
+        """Categorize news into topics"""
+        self.log("Categorizing news...")
 
         for item in self.news_enriched:
-
-            # 使用英文标题和摘要进行分析
+            # Use English fields if available
             title = item.get('title_en', item['title'])
             summary = item.get('summary_en', item['summary'])
             text = (title + " " + summary).lower()
 
-            # 新技术与产品 - 必须包含家电或可移动数码关键词
+            # New Products & Technologies
             if any(k in text for k in MOBILE_ELECTRONICS_KEYWORDS + HOME_APPLIANCES_KEYWORDS):
                 if item not in self.tech_news:
                     self.tech_news.append(item)
 
-            # 制造与投资
+            # Manufacturing & Investment
             if any(k in text for k in MANUFACTURING_KEYWORDS):
                 if item not in self.manufacturing_news:
                     self.manufacturing_news.append(item)
 
-            # 研究突破
+            # Research Breakthroughs
             if any(k in text for k in RESEARCH_KEYWORDS):
                 if item not in self.research_news:
                     self.research_news.append(item)
 
-            # 展会活动
+            # Exhibitions & Events
             if any(k in text for k in EXHIBITION_KEYWORDS):
                 if item not in self.exhibition_news:
                     self.exhibition_news.append(item)
 
-            # 提取趋势数据
+            # Extract trends
             self.extract_trends(text)
 
+        # Limit each category
+        self.tech_news = self.tech_news[:15]
+        self.manufacturing_news = self.manufacturing_news[:15]
+        self.research_news = self.research_news[:10]
+        self.exhibition_news = self.exhibition_news[:8]
 
-    # -------------------------------------------------
-    # extract industry trends
-    # -------------------------------------------------
+        self.log(f"Categorized: {len(self.tech_news)} tech, {len(self.manufacturing_news)} manufacturing, "
+                f"{len(self.research_news)} research, {len(self.exhibition_news)} exhibitions")
+
 
     def extract_trends(self, text):
+        """Extract trends from text"""
+        for company in COMPANIES:
+            if company.lower() in text:
+                self.companies.append(company)
 
-        for c in COMPANIES:
-            if c.lower() in text:
-                self.companies.append(c)
+        for loc in SEA_LOCATIONS:
+            if loc in text:
+                self.locations.append(loc.title())
 
-        for l in SEA_LOCATIONS:
-            if l in text:
-                self.locations.append(l.title())
-
-        for t in TECHNOLOGY:
-            if t in text:
-                self.technologies.append(t.upper() if t in ['ai','ar','vr','5g'] else t.title())
+        for tech in TECHNOLOGY:
+            if tech in text:
+                self.technologies.append(tech.upper() if tech in ['ai','ar','vr','5g'] else tech.title())
 
 
     # -------------------------------------------------
-    # get source logo/icon
+    # HTML Generation
     # -------------------------------------------------
 
     def get_source_logo(self, source):
-
+        """Get source logo/icon"""
         source_lower = source.lower()
         
         logos = {
             'technews': '📱 TechNews', 'ledinside': '💡 LEDinside', 'digitimes': '📰 Digitimes',
-            '21jingji': '📊 21经济', 'people': '🏛️ 人民网', 'ycwb': '📰 羊城晚报',
-            'cnyes': '📈 鉅亨網', 'cnpowder': '⚙️ 粉体网',
-            'materials': '🔬 寻材问料', 'xincailiao': '🧪 新材料在线', 'aibang': '🧪 艾邦',
-            'xiaguangshe': '🌏 霞光社', 'cena': '📡 电子信息网',
+            '21jingji': '📊 21st Century', 'people': '🏛️ People\'s Daily', 'ycwb': '📰 Yangcheng',
+            'cnyes': '📈 CNYES', 'cnpowder': '⚙️ Powder',
+            'materials': '🔬 Materials', 'xincailiao': '🧪 New Materials', 'aibang': '🧪 Aibang',
+            'xiaguangshe': '🌏 Xiaguang', 'cena': '📡 CENA',
             'mida': '🇲🇾 MIDA', 'matrade': '🇲🇾 MATRADE', 'crest': '🇲🇾 CREST',
             'boi': '🇹🇭 BOI', 'edb': '🇸🇬 EDB',
-            'cas': '🔬 中科院', 'fudan': '🎓 复旦大学', 'gfk': '📊 GfK',
-            'jd': '🛒 京东', 'chinadaily': '🇨🇳 China Daily',
+            'cas': '🔬 CAS', 'fudan': '🎓 Fudan', 'gfk': '📊 GfK',
+            'jd': '🛒 JD.com', 'chinadaily': '🇨🇳 China Daily',
             'rokid': '👓 Rokid', 'colmo': '🏠 COLMO', '36kr': '📱 36Kr',
             'kr-asia': '🌏 KrASIA', 'techcrunch': '📱 TechCrunch',
             'theverge': '📱 The Verge', 'engadget': '📱 Engadget',
             'gsmarena': '📱 GSMArena', 'bangkokpost': '🇹🇭 Bangkok Post',
             'thestar': '🇲🇾 The Star', 'straitstimes': '🇸🇬 Straits Times',
             'vietnam-briefing': '🇻🇳 Vietnam Briefing', 'vnexpress': '🇻🇳 VNExpress',
-            'semiengineering': '🔧 SemiEngineering'
+            'semiengineering': '🔧 SemiEngineering', 'electronicproducts': '🔌 ElecProducts',
+            'displaydaily': '📺 DisplayDaily'
         }
         
         for key, logo in logos.items():
@@ -571,149 +694,180 @@ Summary: [translated summary]"""
         return f"📰 {source[:15]}"
 
 
-    # -------------------------------------------------
-    # create html news card
-    # -------------------------------------------------
-
     def news_card(self, item, color="#0066cc"):
-
-        title = html_module.escape(item.get('title_en', item['title'])[:100])
-        summary = html_module.escape(item.get('summary_en', item['summary'])[:200])
+        """Generate HTML for a news card"""
+        title = html_module.escape(item.get('title_en', item['title'])[:120])
+        summary = html_module.escape(item.get('summary_en', item['summary'])[:250])
         source_logo = self.get_source_logo(item['source'])
         link = item['link']
+        published = item.get('published', '')[:10]
 
         return f"""
-<div style="margin-bottom:20px; padding:20px; background:white; border-radius:10px; box-shadow:0 2px 4px rgba(0,0,0,0.05); border-left:4px solid {color};">
-    <div style="display:flex; align-items:center; margin-bottom:10px;">
-        <span style="background:{color}; color:white; padding:5px 10px; border-radius:20px; font-size:0.85em; font-weight:bold; margin-right:10px;">{source_logo}</span>
-        <span style="color:#666; font-size:0.85em;">{item.get('published', '')[:10]}</span>
+<div style="margin-bottom:20px; padding:20px; background:white; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,0.05); border-left:4px solid {color};">
+    <div style="display:flex; align-items:center; margin-bottom:12px; flex-wrap:wrap;">
+        <span style="background:{color}; color:white; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:600; margin-right:12px;">{source_logo}</span>
+        <span style="color:#64748b; font-size:0.85em;">{published}</span>
     </div>
-    <h4 style="font-size:1.2em; margin-bottom:10px; color:#0a1929;">{title}</h4>
-    <p style="color:#334155; margin-bottom:15px; line-height:1.5;">{summary}...</p>
-    <a href="{link}" style="color:{color}; text-decoration:none; font-weight:500;" target="_blank">🔗 阅读原文 →</a>
+    <h4 style="font-size:1.2em; margin-bottom:12px; color:#0a1929; line-height:1.4;">{title}</h4>
+    <p style="color:#475569; margin-bottom:16px; line-height:1.5;">{summary}...</p>
+    <a href="{link}" style="color:{color}; text-decoration:none; font-weight:500; display:inline-flex; align-items:center;" target="_blank">🔗 Read original →</a>
 </div>
 """
 
 
-    # -------------------------------------------------
-    # AI executive summary
-    # -------------------------------------------------
-
-    def executive_summary(self):
-
-        try:
-            companies = ", ".join([c[0] for c in Counter(self.companies).most_common(3)])
-            locations = ", ".join([l[0] for l in Counter(self.locations).most_common(3)])
-            technologies = ", ".join([t[0] for t in Counter(self.technologies).most_common(2)])
-
-            prompt = f"""Write a concise executive insight about Southeast Asia consumer electronics.
-
-Today's activity:
-- New products/tech: {len(self.tech_news)} articles
-- Manufacturing/investment: {len(self.manufacturing_news)} articles
-- Research breakthroughs: {len(self.research_news)} articles
-- Exhibitions/events: {len(self.exhibition_news)} articles
-
-Key companies: {companies}
-Key locations: {locations}
-Key technologies: {technologies}
-
-Write 3-4 professional sentences suitable for a company director."""
-
-            r = openai.ChatCompletion.create(
-                model="deepseek-chat",
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.2,
-                max_tokens=200,
-                timeout=10
-            )
-
-            return r.choices[0].message.content
-
-        except Exception as e:
-            self.log(f"Summary generation failed: {e}")
-            return f"Today's report covers {len(self.tech_news)} new products, {len(self.manufacturing_news)} manufacturing projects, {len(self.research_news)} research breakthroughs, and {len(self.exhibition_news)} exhibitions in Southeast Asia's consumer electronics sector."
-
-
-    # -------------------------------------------------
-    # generate html dashboard
-    # -------------------------------------------------
-
     def generate_html(self):
+        """Generate complete HTML dashboard"""
+        self.log("Generating HTML dashboard...")
 
+        # Executive summary
         summary = self.executive_summary()
 
-        def render_section(items, color):
-            html = ""
-            for i in items:
-                html += self.news_card(i, color)
-            if not html:
-                html = '<p style="color:#666; text-align:center; padding:20px;">暂无新闻</p>'
-            return html
-
-        # 制造热点统计
+        # Location stats for manufacturing
         location_stats = ""
         if self.locations:
-            location_counts = Counter(self.locations).most_common(5)
-            location_stats = '<div style="background:#f8f9fa; padding:20px; border-radius:10px; margin-bottom:25px;">'
-            location_stats += '<h4 style="margin-bottom:15px; color:#0a1929;">📍 制造热点分布</h4>'
-            location_stats += '<div style="display:flex; flex-wrap:wrap; gap:15px;">'
+            location_counts = Counter(self.locations).most_common(6)
+            location_stats = '<div style="background:#f8fafc; padding:20px; border-radius:12px; margin-bottom:30px;">'
+            location_stats += '<h4 style="margin-bottom:16px; color:#0a1929; font-size:1.2em;">📍 Manufacturing Hotspots</h4>'
+            location_stats += '<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:15px;">'
             
             for loc, count in location_counts:
                 location_stats += f"""
-                <div style="flex:1; min-width:120px; background:white; padding:12px; border-radius:8px;">
-                    <div style="font-weight:bold; color:#0066cc;">{loc}</div>
-                    <div style="font-size:1.5em; font-weight:bold;">{count}</div>
-                    <div style="font-size:0.85em; color:#666;">mentions</div>
+                <div style="background:white; padding:15px; border-radius:10px; text-align:center; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="font-weight:600; color:#0066cc; font-size:1.1em;">{loc}</div>
+                    <div style="font-size:1.8em; font-weight:bold; color:#0a1929; margin:5px 0;">{count}</div>
+                    <div style="font-size:0.85em; color:#64748b;">mentions</div>
                 </div>
                 """
             location_stats += '</div></div>'
+
+        # Render sections
+        def render_section(items, color, empty_msg="No news available"):
+            if not items:
+                return f'<p style="color:#666; text-align:center; padding:40px;">{empty_msg}</p>'
+            return ''.join([self.news_card(i, color) for i in items])
+
+        # Current date
+        date_str = datetime.now().strftime('%B %d, %Y')
+        time_str = datetime.now().strftime('%H:%M:%S')
 
         html = f"""<!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Southeast Asia Consumer Electronics Intelligence</title>
     <style>
         * {{ margin:0; padding:0; box-sizing:border-box; }}
-        body {{ font-family:'Segoe UI',Arial,sans-serif; background:#f0f2f5; padding:30px 20px; }}
-        .dashboard {{ max-width:1400px; margin:0 auto; }}
-        .header {{ background:linear-gradient(135deg,#0a1929 0%,#1a2a3a 100%); color:white; padding:40px 50px; border-radius:20px 20px 0 0; margin-bottom:30px; }}
-        .header h1 {{ font-size:2.5em; font-weight:300; }}
-        .header h1 strong {{ font-weight:600; color:#ffd700; }}
-        .header .date {{ color:#94a3b8; font-size:1.1em; margin:10px 0 20px; }}
-        .header .meta {{ display:flex; gap:30px; color:#cbd5e1; border-top:1px solid #334155; padding-top:20px; flex-wrap:wrap; }}
+        body {{ 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f1f5f9; 
+            padding: 30px 20px; 
+            line-height: 1.6;
+            color: #1e293b;
+        }}
+        .dashboard {{ max-width: 1400px; margin: 0 auto; }}
         
-        .summary-card {{ background:white; border-radius:16px; padding:35px; margin-bottom:30px; border-left:6px solid #ffd700; box-shadow:0 4px 6px rgba(0,0,0,0.05); }}
-        .summary-card h2 {{ color:#0a1929; font-size:1.8em; margin-bottom:20px; }}
-        .summary-card p {{ font-size:1.2em; color:#334155; line-height:1.8; }}
+        .header {{ 
+            background: linear-gradient(135deg, #0a1929 0%, #1a2a3a 100%); 
+            color: white; 
+            padding: 40px 50px; 
+            border-radius: 20px 20px 0 0; 
+            margin-bottom: 30px; 
+        }}
+        .header h1 {{ font-size: 2.5em; font-weight: 300; margin-bottom: 10px; }}
+        .header h1 strong {{ font-weight: 600; color: #ffd700; }}
+        .header .date {{ color: #94a3b8; font-size: 1.1em; margin: 10px 0 20px; }}
+        .header .meta {{ 
+            display: flex; 
+            gap: 30px; 
+            color: #cbd5e1; 
+            border-top: 1px solid #334155; 
+            padding-top: 20px; 
+            flex-wrap: wrap; 
+        }}
         
-        .kpi-grid {{ display:grid; grid-template-columns:repeat(4,1fr); gap:25px; margin-bottom:40px; }}
-        .kpi-card {{ background:white; border-radius:16px; padding:25px; box-shadow:0 4px 6px rgba(0,0,0,0.05); }}
-        .kpi-icon {{ font-size:2.5em; margin-bottom:15px; }}
-        .kpi-value {{ font-size:2.8em; font-weight:600; color:#0a1929; line-height:1.2; }}
-        .kpi-label {{ color:#64748b; font-size:1em; text-transform:uppercase; margin-bottom:10px; }}
+        .summary-card {{ 
+            background: white; 
+            border-radius: 16px; 
+            padding: 35px; 
+            margin-bottom: 30px; 
+            border-left: 6px solid #ffd700; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }}
+        .summary-card h2 {{ color: #0a1929; font-size: 1.8em; margin-bottom: 20px; }}
+        .summary-card p {{ font-size: 1.2em; color: #334155; line-height: 1.8; }}
         
-        .section-header {{ margin:50px 0 30px; }}
-        .section-header h2 {{ font-size:2.2em; color:#0a1929; font-weight:500; display:inline-block; background:#f0f2f5; padding-right:20px; }}
+        .kpi-grid {{ 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            gap: 25px; 
+            margin-bottom: 40px; 
+        }}
+        .kpi-card {{ 
+            background: white; 
+            border-radius: 16px; 
+            padding: 25px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); 
+        }}
+        .kpi-icon {{ font-size: 2.5em; margin-bottom: 15px; }}
+        .kpi-value {{ 
+            font-size: 2.8em; 
+            font-weight: 600; 
+            color: #0a1929; 
+            line-height: 1.2; 
+        }}
+        .kpi-label {{ 
+            color: #64748b; 
+            font-size: 1em; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            margin-bottom: 5px; 
+        }}
         
-        .news-grid {{ display:grid; grid-template-columns:repeat(auto-fill,minmax(450px,1fr)); gap:25px; }}
+        .section-header {{ margin: 50px 0 30px; }}
+        .section-header h2 {{ 
+            font-size: 2.2em; 
+            color: #0a1929; 
+            font-weight: 500; 
+            display: inline-block; 
+            background: #f1f5f9; 
+            padding-right: 20px; 
+        }}
         
-        .footer {{ background:#0a1929; color:white; padding:40px; border-radius:0 0 20px 20px; margin-top:50px; text-align:center; }}
-        .footer p {{ color:#94a3b8; margin-bottom:10px; }}
+        .news-grid {{ 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); 
+            gap: 25px; 
+        }}
         
-        @media (max-width:768px) {{ .kpi-grid {{ grid-template-columns:1fr; }} .news-grid {{ grid-template-columns:1fr; }} }}
+        .footer {{ 
+            background: #0a1929; 
+            color: white; 
+            padding: 40px; 
+            border-radius: 0 0 20px 20px; 
+            margin-top: 50px; 
+            text-align: center; 
+        }}
+        .footer p {{ color: #94a3b8; margin-bottom: 10px; }}
+        .footer .sources {{ font-size: 0.85em; color: #64748b; margin-top: 20px; }}
+        
+        @media (max-width: 768px) {{ 
+            .kpi-grid {{ grid-template-columns: 1fr; }} 
+            .news-grid {{ grid-template-columns: 1fr; }} 
+            .header {{ padding: 30px 20px; }}
+        }}
     </style>
 </head>
 <body>
     <div class="dashboard">
         <div class="header">
             <h1><strong>Southeast Asia</strong> Consumer Electronics Intelligence</h1>
-            <div class="date">{datetime.now().strftime('%B %d, %Y')}</div>
+            <div class="date">{date_str}</div>
             <div class="meta">
                 <span>📊 Total Articles: {len(self.news_enriched)}</span>
                 <span>🌏 Focus: Consumer Electronics in SEA</span>
-                <span>⏰ {datetime.now().strftime('%H:%M:%S')}</span>
+                <span>⏰ Generated: {time_str}</span>
+                <span>⚡ Sources: 50+</span>
             </div>
         </div>
         
@@ -723,51 +877,116 @@ Write 3-4 professional sentences suitable for a company director."""
         </div>
         
         <div class="kpi-grid">
-            <div class="kpi-card"><div class="kpi-icon">📱</div><div class="kpi-label">New Products</div><div class="kpi-value">{len(self.tech_news)}</div></div>
-            <div class="kpi-card"><div class="kpi-icon">🏭</div><div class="kpi-label">Manufacturing</div><div class="kpi-value">{len(self.manufacturing_news)}</div></div>
-            <div class="kpi-card"><div class="kpi-icon">🔬</div><div class="kpi-label">Research</div><div class="kpi-value">{len(self.research_news)}</div></div>
-            <div class="kpi-card"><div class="kpi-icon">🎪</div><div class="kpi-label">Exhibitions</div><div class="kpi-value">{len(self.exhibition_news)}</div></div>
+            <div class="kpi-card">
+                <div class="kpi-icon">📱</div>
+                <div class="kpi-label">New Products</div>
+                <div class="kpi-value">{len(self.tech_news)}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🏭</div>
+                <div class="kpi-label">Manufacturing</div>
+                <div class="kpi-value">{len(self.manufacturing_news)}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🔬</div>
+                <div class="kpi-label">Research</div>
+                <div class="kpi-value">{len(self.research_news)}</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon">🎪</div>
+                <div class="kpi-label">Exhibitions</div>
+                <div class="kpi-value">{len(self.exhibition_news)}</div>
+            </div>
         </div>
         
         <div class="section-header"><h2>📱 New Products & Technologies</h2></div>
-        <div class="news-grid">{render_section(self.tech_news, "#0066cc")}</div>
+        <div class="news-grid">{render_section(self.tech_news, "#0066cc", "No new product news today")}</div>
         
         <div class="section-header"><h2>🏭 Manufacturing & Investment</h2></div>
         {location_stats}
-        <div class="news-grid">{render_section(self.manufacturing_news, "#10b981")}</div>
+        <div class="news-grid">{render_section(self.manufacturing_news, "#10b981", "No manufacturing news today")}</div>
         
         <div class="section-header"><h2>🔬 Research Breakthroughs</h2></div>
-        <div class="news-grid">{render_section(self.research_news, "#8b5cf6")}</div>
+        <div class="news-grid">{render_section(self.research_news, "#8b5cf6", "No research news today")}</div>
         
         <div class="section-header"><h2>🎪 Exhibitions & Events</h2></div>
-        <div class="news-grid">{render_section(self.exhibition_news, "#ff9800")}</div>
+        <div class="news-grid">{render_section(self.exhibition_news, "#f59e0b", "No exhibition news today")}</div>
         
         <div class="footer">
-            <p>Southeast Asia Consumer Electronics Intelligence • 50+ Sources including Chinese Tech Media, Government Sites</p>
-            <p>Sources: TechNews, LEDinside, Digitimes, 21经济, 人民网, 中国粉体网, 寻材问料, 新材料在线, 艾邦, 霞光社, MIDA, BOI, EDB, 中科院</p>
+            <p>Southeast Asia Consumer Electronics Intelligence • Daily Briefing</p>
+            <p>Data sources include: TechNews, LEDinside, Digitimes, 21st Century, People's Daily, Powder Network, Materials.cn, New Materials Online, Aibang, Xiaguang, MIDA, BOI, EDB, CAS, Fudan, GFK, JD.com, TechCrunch, The Verge, Engadget, GSMArena, KrASIA, and regional SEA media</p>
+            <div class="sources">© 2026 • Generated by DeepSeek AI • For executive use only</div>
         </div>
     </div>
 </body>
 </html>
 """
-
         return html
 
 
     # -------------------------------------------------
-    # send email
+    # AI Executive Summary
+    # -------------------------------------------------
+
+    def executive_summary(self):
+        """Generate AI executive summary"""
+        try:
+            # Get top trends
+            companies = ", ".join([c[0] for c in Counter(self.companies).most_common(3)]) or "major brands"
+            locations = ", ".join([l[0] for l in Counter(self.locations).most_common(2)]) or "Southeast Asia"
+            technologies = ", ".join([t[0] for t in Counter(self.technologies).most_common(2)]) or "consumer electronics"
+
+            prompt = f"""Write a concise executive summary about consumer electronics manufacturing and innovation in Southeast Asia.
+
+Today's Activity:
+- New products/technologies: {len(self.tech_news)} articles
+- Manufacturing/investment: {len(self.manufacturing_news)} articles
+- Research breakthroughs: {len(self.research_news)} articles
+- Exhibitions/events: {len(self.exhibition_news)} articles
+
+Key players: {companies}
+Key locations: {locations}
+Key technologies: {technologies}
+
+Write 3-4 professional sentences. Focus on strategic implications for the consumer electronics industry. Use English only."""
+
+            response = openai.ChatCompletion.create(
+                model="deepseek-chat",
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=250,
+                timeout=15
+            )
+
+            return response.choices[0].message.content
+
+        except Exception as e:
+            self.log(f"Summary generation failed: {e}", "WARNING")
+            return (f"Today's report covers {len(self.tech_news)} new products, {len(self.manufacturing_news)} "
+                   f"manufacturing projects, {len(self.research_news)} research breakthroughs, and "
+                   f"{len(self.exhibition_news)} exhibitions in Southeast Asia's consumer electronics sector. "
+                   f"Key activity in {locations} from companies including {companies}.")
+
+
+    # -------------------------------------------------
+    # Email Delivery
     # -------------------------------------------------
 
     def send_email(self, html):
-
+        """Send email with HTML report"""
         if not RECEIVER_EMAIL:
-            self.log("No email configured")
+            self.log("No email recipients configured", "WARNING")
             return False
 
         try:
-            # 解析多个收件人
-            recipients = [e.strip() for e in RECEIVER_EMAIL.replace(';',',').split(',') if '@' in e]
+            # Parse multiple recipients
+            recipients = [e.strip() for e in RECEIVER_EMAIL.replace(';', ',').split(',') if '@' in e]
+            
+            if not recipients:
+                self.log("No valid email recipients", "ERROR")
+                return False
 
+            # Create message
             msg = MIMEMultipart()
             msg["Subject"] = f"SEA Consumer Electronics Intelligence - {datetime.now().strftime('%Y-%m-%d')}"
             msg["From"] = SENDER_EMAIL
@@ -775,7 +994,8 @@ Write 3-4 professional sentences suitable for a company director."""
 
             msg.attach(MIMEText(html, "html", "utf-8"))
 
-            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT)
+            # Send via SMTP
+            server = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT, timeout=30)
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, recipients, msg.as_string())
             server.quit()
@@ -784,44 +1004,60 @@ Write 3-4 professional sentences suitable for a company director."""
             return True
 
         except Exception as e:
-            self.log(f"Email failed: {e}")
+            self.log(f"Email failed: {e}", "ERROR")
             traceback.print_exc()
             return False
 
 
     # -------------------------------------------------
-    # run system
+    # Main Execution
     # -------------------------------------------------
 
     def run(self):
-
-        start = time.time()
+        """Main execution pipeline"""
+        self.start_time = time.time()
 
         self.log("=" * 60)
-        self.log("Southeast Asia Consumer Electronics Intelligence System")
+        self.log("SOUTHEAST ASIA CONSUMER ELECTRONICS INTELLIGENCE SYSTEM")
         self.log("=" * 60)
 
-        # 1. 获取新闻
+        # Step 1: Fetch news
         self.fetch_news()
+        if not self.news:
+            self.log("No news found, exiting", "ERROR")
+            return
 
-        # 2. 分类
-        self.categorize()
+        # Step 2: Process translations
+        self.process_translations()
 
-        # 3. 生成HTML
+        # Step 3: Categorize news
+        self.categorize_news()
+
+        # Step 4: Generate HTML
         html = self.generate_html()
 
-        # 4. 发送邮件
+        # Step 5: Send email
         self.send_email(html)
 
-        elapsed = time.time() - start
-        self.log(f"System finished in {elapsed:.1f} seconds")
+        # Final stats
+        elapsed = time.time() - self.start_time
+        self.log(f"System completed in {elapsed:.1f} seconds")
+        self.log(f"Final counts: Tech={len(self.tech_news)}, Mfg={len(self.manufacturing_news)}, "
+                f"Research={len(self.research_news)}, Exhib={len(self.exhibition_news)}")
 
 
 # =====================================================
-# MAIN
+# MAIN ENTRY POINT
 # =====================================================
 
 if __name__ == "__main__":
-
-    system = SEAConsumerElectronicsIntel()
-    system.run()
+    try:
+        system = SEAConsumerElectronicsIntel()
+        system.run()
+    except KeyboardInterrupt:
+        print("\nSystem interrupted by user")
+        sys.exit(0)
+    except Exception as e:
+        print(f"Fatal error: {e}")
+        traceback.print_exc()
+        sys.exit(1)
